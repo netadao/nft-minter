@@ -8,4 +8,4 @@
 ## Open TODOs:
 - Migrate some global vars to a separate package
 - Grab cw-paginate from da0da0 contracts
-- 
+- clean up junk packages
