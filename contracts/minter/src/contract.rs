@@ -104,11 +104,16 @@ pub fn instantiate(
         return Err(ContractError::InvalidStartTime {});
     }
 
-    if msg.base_fields.end_time <= env.block.time {
+    if msg.base_fields.end_time.unwrap_or(env.block.time) < env.block.time {
         return Err(ContractError::InvalidEndTime {});
     }
 
-    if msg.base_fields.start_time >= msg.base_fields.end_time {
+    if msg.base_fields.start_time
+        >= msg
+            .base_fields
+            .end_time
+            .unwrap_or_else(|| msg.base_fields.start_time.plus_nanos(1u64))
+    {
         return Err(ContractError::InvalidStartTime {});
     }
 
@@ -318,7 +323,7 @@ fn execute_update_config(
         }
 
         if let Some(addr) = AIRDROPPER_ADDR.may_load(deps.storage)? {
-            let update_msg = AD_UpdateMaintainerAddress(msg.maintainer_address);
+            let update_msg = AD_UpdateMaintainerAddress(msg.maintainer_address.clone());
             let msg = CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: addr.into_string(),
                 msg: to_binary(&update_msg)?,
@@ -334,7 +339,11 @@ fn execute_update_config(
             return Err(ContractError::InvalidStartTime {});
         }
 
-        if msg.start_time >= config.end_time {
+        if msg.start_time
+            >= config
+                .end_time
+                .unwrap_or_else(|| msg.start_time.plus_nanos(1u64))
+        {
             return Err(ContractError::InvalidStartTime {});
         }
 
@@ -342,11 +351,19 @@ fn execute_update_config(
     }
 
     if msg.end_time != config.end_time {
-        if msg.end_time <= env.block.time {
+        if msg
+            .end_time
+            .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
+            <= env.block.time
+        {
             return Err(ContractError::InvalidEndTime {});
         }
 
-        if msg.end_time <= config.start_time {
+        if msg
+            .end_time
+            .unwrap_or_else(|| config.start_time.plus_nanos(1u64))
+            <= config.start_time
+        {
             return Err(ContractError::InvalidEndTime {});
         }
 
@@ -487,7 +504,11 @@ pub fn execute_mint(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Respon
 
     // ensure campaign has not ended
     // TODO: move to optional?
-    if config.end_time <= env.block.time {
+    if config
+        .end_time
+        .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
+        <= env.block.time
+    {
         return Err(ContractError::CampaignHasEnded {});
     }
 
@@ -1153,8 +1174,19 @@ fn check_can_update(deps: Deps, env: &Env, info: &MessageInfo) -> Result<bool, C
         }
 
         // campaing ended
-        if config.end_time <= env.block.time {
+        if config
+            .end_time
+            .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
+            <= env.block.time
+        {
             return Err(ContractError::CampaignHasEnded {});
+        }
+
+        // check token supply
+        let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+
+        if current_token_supply == 0 {
+            return Err(ContractError::MintCompleted {});
         }
 
         Ok(true)
@@ -1301,11 +1333,20 @@ fn check_public_mint(deps: Deps, env: Env, info: &MessageInfo) -> Result<bool, C
         return Err(ContractError::BeforeStartTime {});
     }
 
-    if config.end_time <= env.block.time {
+    if config
+        .end_time
+        .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
+        <= env.block.time
+    {
         return Err(ContractError::CampaignHasEnded {});
     }
 
-    if config.start_time <= env.block.time && env.block.time < config.end_time {
+    if config.start_time <= env.block.time
+        && env.block.time
+            < config
+                .end_time
+                .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
+    {
         can_mint = true;
     }
 

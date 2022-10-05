@@ -9,7 +9,7 @@ pub struct Config {
     pub admin: Addr,
     pub maintainer_addr: Option<Addr>,
     pub start_time: Timestamp,
-    pub end_time: Timestamp,
+    pub end_time: Option<Timestamp>,
     pub max_token_supply: u32,
     pub max_per_address_mint: u32,
     pub mint_price: Uint128,

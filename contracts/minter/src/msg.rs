@@ -40,7 +40,7 @@ pub struct BaseInitMsg {
     /// hard stop for public mint
     /// TODO: move to optional?
     /// TODO: allow admin/maintainer to update this if needed
-    pub end_time: Timestamp,
+    pub end_time: Option<Timestamp>,
     /// max mint per address
     pub max_per_address_mint: u32,
     /// mint price fee for PUBLIC mint. This can be overridden by WL mint_price
@@ -236,7 +236,7 @@ pub struct ConfigResponse {
     pub start_time: Timestamp,
     /// public mint end time.
     /// TODO: migrate to optional?
-    pub end_time: Timestamp,
+    pub end_time: Option<Timestamp>,
     /// maximum token supply
     /// TODO: move to uncapped for special project
     pub max_token_supply: u32,

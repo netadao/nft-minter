@@ -91,6 +91,7 @@ mod tests {
     const AIRDROPPER_START_TIME: u64 = 1571797420;
     const MINT_START_TIME: u64 = 1601797420;
     const MINT_END_TIME: u64 = 1657801750;
+    const EXCESSIVE_END_TIME: u64 = 2657801750;
 
     const MAX_PER_ADDRESS_MINT: u32 = 4;
     const MAX_TOKEN_SUPPLY: u32 = 5;
@@ -189,7 +190,7 @@ mod tests {
             base_fields: BaseInitMsg {
                 maintainer_address: Some(MAINTAINER_ADDR.to_string()),
                 start_time: Timestamp::from_seconds(MINT_START_TIME),
-                end_time: Timestamp::from_seconds(MINT_END_TIME),
+                end_time: Some(Timestamp::from_seconds(MINT_END_TIME)),
                 max_per_address_mint: MAX_PER_ADDRESS_MINT,
                 mint_price: Uint128::from(MINT_PRICE),
                 mint_denom: NATIVE_DENOM.to_owned(),
@@ -3398,6 +3399,33 @@ mod tests {
                 .unwrap();
             println!("###config {:?}", config);
 
+            let maintainer_address: Option<String> = config
+                .maintainer_addr
+                .clone()
+                .map(|addr| addr.into_string());
+
+            let mut msg: BaseInitMsg = BaseInitMsg {
+                maintainer_address,
+                start_time: config.start_time,
+                end_time: config.end_time,
+                max_per_address_mint: config.max_per_address_mint,
+                mint_price: config.mint_price,
+                mint_denom: config.mint_denom,
+                base_token_uri: config.base_token_uri,
+                token_code_id: config.token_code_id,
+                escrow_funds: false,
+            };
+
+            // removed end time
+            msg.end_time = None;
+            app.execute_contract(
+                Addr::unchecked(ADMIN),
+                cw_template_contract.addr(),
+                &ExecuteMsg::UpdateConfig(msg),
+                &[],
+            )
+            .unwrap();
+
             // not yet block time
             let msg = ExecuteMsg::Mint {};
 
@@ -3425,6 +3453,91 @@ mod tests {
             assert_eq!(token_data.remaining_token_supply, 4);
 
             println!("### config {:?}", token_data);
+
+            // try to mint after old end time
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_END_TIME));
+
+            let res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            println!("current_token_supply {:?}", res);
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens {},
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 3);
+
+            println!("### config {:?}", token_data);
+
+            // try to mint after an excessive block time
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(EXCESSIVE_END_TIME));
+
+            let res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            println!("current_token_supply {:?}", res);
+
+            let res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            println!("current_token_supply {:?}", res);
+
+            let res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            println!("current_token_supply {:?}", res);
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens {},
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 0);
+
+            println!("### config {:?}", token_data);
+
+            let res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            println!("current_token_supply {:?}", res);
         }
 
         // not enough tokens for user 1
