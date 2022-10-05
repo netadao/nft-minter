@@ -3,9 +3,10 @@ use cosmwasm_std::{entry_point, to_binary, Addr, Binary, Deps, Env, Order, StdRe
 use cw_storage_plus::Bound;
 use cw_utils::maybe_addr;
 
-use crate::msg::{AddressValMsg, ConfigResponse, QueryMsg, TokenDataResponse};
+use crate::msg::{AddrBal, AddressValMsg, ConfigResponse, QueryMsg, TokenDataResponse};
 use crate::state::{
-    ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, CONFIG, CURRENT_TOKEN_SUPPLY, CW721_ADDR, WHITELIST_ADDR,
+    ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES, CONFIG, CURRENT_TOKEN_SUPPLY, CW721_ADDR,
+    WHITELIST_ADDR,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -17,6 +18,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::GetAddressMints { start_after, limit } => {
             query_get_address_mints(deps, env, start_after, limit)
+        }
+        QueryMsg::GetEscrowBalances { start_after, limit } => {
+            query_get_escrow_balances(deps, env, start_after, limit)
         }
         /*
         QueryMsg::GetShuffledTokenIds { start_after, limit } => to_binary(
@@ -105,6 +109,30 @@ fn query_get_remaining_tokens(deps: Deps, _env: Env) -> StdResult<Binary> {
         remaining_token_supply,
     })
 }
+
+fn query_get_escrow_balances(
+    deps: Deps,
+    _env: Env,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<Binary> {
+    let start_after = maybe_addr(deps.api, start_after)?;
+    let start = start_after.map(Bound::<Addr>::exclusive);
+
+    let limit = limit.unwrap_or(100).min(100) as usize;
+
+    let balances = BANK_BALANCES
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (addr, balance) = item?;
+            Ok(AddrBal { addr, balance })
+        })
+        .collect::<StdResult<Vec<AddrBal>>>();
+
+    to_binary(&balances.unwrap())
+}
+
 /*
 fn query_get_token_indices(
     deps: Deps,

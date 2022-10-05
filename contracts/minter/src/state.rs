@@ -19,6 +19,7 @@ pub struct Config {
     pub symbol: String,
     pub token_code_id: u64,
     pub extension: CollectionInfo,
+    pub escrow_funds: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
@@ -45,3 +46,4 @@ pub const TOKEN_ID_POSITIONS: Map<u32, u32> = Map::new("token_id_positions");
 pub const CW721_ADDR: Item<Addr> = Item::new("cw721_addr");
 pub const AIRDROPPER_ADDR: Item<Addr> = Item::new("airdropper_addr");
 pub const WHITELIST_ADDR: Item<Addr> = Item::new("whitelist_addr");
+pub const BANK_BALANCES: Map<Addr, Uint128> = Map::new("bank_balances");

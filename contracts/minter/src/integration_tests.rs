@@ -2,8 +2,9 @@
 mod tests {
     use crate::helpers::CwTemplateContract;
     use crate::msg::{
-        Admin, BaseInitMsg, CollectionInfoMsg, ConfigResponse, ExecuteMsg, ExecutionTarget,
-        InstantiateMsg, ModuleInstantiateInfo, QueryMsg, RoyaltyInfoMsg, TokenDataResponse,
+        AddrBal, Admin, BaseInitMsg, CollectionInfoMsg, ConfigResponse, ExecuteMsg,
+        ExecutionTarget, InstantiateMsg, ModuleInstantiateInfo, QueryMsg, RoyaltyInfoMsg,
+        TokenDataResponse,
     };
     use cosmwasm_std::{
         coin, coins, to_binary, Addr, Coin, CosmosMsg, Empty, Timestamp, Uint128, WasmMsg,
@@ -194,6 +195,7 @@ mod tests {
                 mint_denom: NATIVE_DENOM.to_owned(),
                 base_token_uri: "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
                 token_code_id: cw721_id,
+                escrow_funds: false,
             },
             whitelist_address: None,
             airdrop_address: None,
@@ -381,6 +383,7 @@ mod tests {
                 mint_denom: config.mint_denom,
                 base_token_uri: config.base_token_uri,
                 token_code_id: config.token_code_id,
+                escrow_funds: false,
             };
 
             assert_eq!(
@@ -2279,7 +2282,7 @@ mod tests {
 
             let admin_balance = app.wrap().query_all_balances(ADMIN.to_owned()).unwrap();
             println!("{:?}", admin_balance);
-            assert_eq!(admin_balance[0].amount, Uint128::from(10_700_000u128));
+            assert_eq!(admin_balance[0].amount, Uint128::from(10_700_001u128));
 
             let maintainer_balance = app
                 .wrap()
@@ -2397,6 +2400,12 @@ mod tests {
 
             assert_eq!(address_mint_tracker[2].0, USER25.to_owned());
             assert_eq!(address_mint_tracker[2].1, 2);
+
+            let contract_balance = app
+                .wrap()
+                .query_all_balances(cw_template_contract.addr())
+                .unwrap();
+            println!("contract_balance {:?}", contract_balance);
         }
 
         #[test]
@@ -2540,6 +2549,260 @@ mod tests {
                     &[coin(2_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
+        }
+
+        #[test]
+        fn execute_whitelist_mints_success_partial_whitelist_mint_escrow() {
+            let (mut app, cw_template_contract) = proper_instantiate(true, true);
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            let maintainer_address: Option<String> = config
+                .maintainer_addr
+                .clone()
+                .map(|addr| addr.into_string());
+
+            let mut msg: BaseInitMsg = BaseInitMsg {
+                maintainer_address,
+                start_time: config.start_time,
+                end_time: config.end_time,
+                max_per_address_mint: config.max_per_address_mint,
+                mint_price: config.mint_price,
+                mint_denom: config.mint_denom.clone(),
+                base_token_uri: config.base_token_uri,
+                token_code_id: config.token_code_id,
+                escrow_funds: false,
+            };
+
+            msg.escrow_funds = true;
+
+            app.execute_contract(
+                Addr::unchecked(ADMIN),
+                cw_template_contract.addr(),
+                &ExecuteMsg::UpdateConfig(msg),
+                &[],
+            )
+            .unwrap();
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::AddToWhitelist(vec![
+                    USER.to_string(),
+                    USER10.to_string(),
+                    USER25.to_string(),
+                ]),
+                &[],
+            )
+            .unwrap();
+
+            app.update_block(|mut block| {
+                block.time = Timestamp::from_seconds(WHITELIST_START_TIME)
+            });
+
+            // first mint
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {},
+                    &[coin(1_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            // USER10 maxes out 2
+
+            for _ in 1u32..=2 {
+                let _res = app
+                    .execute_contract(
+                        Addr::unchecked(USER10),
+                        cw_template_contract.addr(),
+                        &ExecuteMsg::Mint {},
+                        &[coin(1_000_000, NATIVE_DENOM)],
+                    )
+                    .unwrap();
+            }
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER10),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {},
+                    &[coin(1_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens {},
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 2);
+
+            println!("### config {:?}", token_data);
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {},
+                    &[coin(1_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            let address_mint_tracker: Vec<(String, u32)> = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.unwrap(),
+                    &WhitelistQueryMsg::GetAddressMints {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap();
+
+            assert_eq!(address_mint_tracker[0].0, USER.to_owned());
+            assert_eq!(address_mint_tracker[0].1, 1);
+
+            assert_eq!(address_mint_tracker[1].0, USER10.to_owned());
+            assert_eq!(address_mint_tracker[1].1, 2);
+
+            assert_eq!(address_mint_tracker[2].0, USER25.to_owned());
+            assert_eq!(address_mint_tracker[2].1, 1);
+
+            // WL ended
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(WHITELIST_END_TIME));
+
+            // USER25 tries to mint again
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {},
+                    &[coin(1_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            // public mint starts
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
+
+            // USER25 mints in public with less than amount
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {},
+                    &[coin(1_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {},
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {},
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            let maintainer_balance: Coin = app
+                .wrap()
+                .query_balance(MAINTAINER_ADDR.to_owned(), config.mint_denom.clone())
+                .unwrap();
+            println!("maintainer_balance {:?}", maintainer_balance);
+            assert_eq!(maintainer_balance.amount, Uint128::zero());
+
+            let admin_balance: Coin = app
+                .wrap()
+                .query_balance(ADMIN.to_owned(), config.mint_denom.clone())
+                .unwrap();
+            assert_eq!(admin_balance.amount, Uint128::from(10_000_000u128));
+            println!("admin_balance {:?}", admin_balance);
+
+            let contract_balance: Coin = app
+                .wrap()
+                .query_balance(&cw_template_contract.addr(), config.mint_denom.clone())
+                .unwrap();
+            assert_eq!(contract_balance.amount, Uint128::from(6_000_000u128));
+            println!("contract_balance {:?}", contract_balance);
+
+            let escrow_bals: Vec<AddrBal> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetEscrowBalances {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap();
+            println!("escrow_bals {:?}", escrow_bals);
+            assert_eq!(
+                escrow_bals,
+                vec![
+                    AddrBal {
+                        addr: Addr::unchecked(ADMIN.to_owned()),
+                        balance: Uint128::from(4_200_000u128)
+                    },
+                    AddrBal {
+                        addr: Addr::unchecked(MAINTAINER_ADDR.to_owned()),
+                        balance: Uint128::from(1_800_000u128)
+                    }
+                ]
+            );
+            // fail
+            app.execute_contract(
+                Addr::unchecked(INVALID),
+                cw_template_contract.addr(),
+                &ExecuteMsg::DisburseFunds {},
+                &[],
+            )
+            .unwrap_err();
+
+            // disbursed
+            app.execute_contract(
+                Addr::unchecked(ADMIN),
+                cw_template_contract.addr(),
+                &ExecuteMsg::DisburseFunds {},
+                &[],
+            )
+            .unwrap();
+
+            let maintainer_balance: Coin = app
+                .wrap()
+                .query_balance(MAINTAINER_ADDR.to_owned(), config.mint_denom.clone())
+                .unwrap();
+            println!("maintainer_balance {:?}", maintainer_balance);
+            assert_eq!(maintainer_balance.amount, Uint128::from(1_800_000u128));
+
+            let admin_balance: Coin = app
+                .wrap()
+                .query_balance(ADMIN.to_owned(), config.mint_denom.clone())
+                .unwrap();
+            assert_eq!(admin_balance.amount, Uint128::from(14_200_000u128));
+            println!("admin_balance {:?}", admin_balance);
+
+            let contract_balance: Coin = app
+                .wrap()
+                .query_balance(&cw_template_contract.addr(), config.mint_denom)
+                .unwrap();
+            assert_eq!(contract_balance.amount, Uint128::zero());
+            println!("contract_balance {:?}", contract_balance);
         }
     }
 

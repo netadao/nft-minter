@@ -29,6 +29,7 @@ pub struct InstantiateMsg {
 }
 
 /// Base fields that are used for instantiation
+/// dual purpose: also used for update config funciton
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct BaseInitMsg {
     /// alternate address for maintaining/management of this contract
@@ -51,6 +52,8 @@ pub struct BaseInitMsg {
     pub base_token_uri: String,
     /// code id for cw721 contract
     pub token_code_id: u64,
+    /// determines if you want to escrow funds or just send funds per tx
+    pub escrow_funds: bool,
 }
 
 /// Collection Info that stores revenue/royalty split as well the optional secondary metadata
@@ -175,6 +178,8 @@ pub enum ExecuteMsg {
     ShuffleTokenOrder {},
     /// Allows this contract to pass execution messages to its submodules
     SubmoduleHook(ExecutionTarget, CosmosMsg<Empty>),
+    /// Allows an admin/maintainer to disburse funds in escrow
+    DisburseFunds {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -188,6 +193,13 @@ pub enum QueryMsg {
     /// in `ADDRESS_MINT_TRACKER`. Default sort is in ASCENDING based on
     /// addressreturns Vec<AddressValMsg>
     GetAddressMints {
+        /// address
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    /// gets a list of all the balances in escrow
+    /// returns Vec<AddrBal>
+    GetEscrowBalances {
         /// address
         start_after: Option<String>,
         limit: Option<u32>,
@@ -269,4 +281,11 @@ pub struct AddressValMsg {
     pub address: String,
     /// mint count
     pub value: u32,
+}
+
+/// Simple struct for address-bal
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq)]
+pub struct AddrBal {
+    pub addr: Addr,
+    pub balance: Uint128,
 }

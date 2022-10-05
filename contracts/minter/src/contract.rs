@@ -1,11 +1,12 @@
 use crate::error::ContractError;
 use crate::msg::{
-    Admin, BaseInitMsg, CollectionInfoMsg, ExecuteMsg, ExecutionTarget, InstantiateMsg, MintType,
-    ModuleInstantiateInfo, RoyaltyInfoMsg,
+    AddrBal, Admin, BaseInitMsg, CollectionInfoMsg, ExecuteMsg, ExecutionTarget, InstantiateMsg,
+    MintType, ModuleInstantiateInfo, RoyaltyInfoMsg,
 };
 use crate::state::{
-    CollectionInfo, Config, RoyaltyInfo, ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, CONFIG,
-    CURRENT_TOKEN_SUPPLY, CW721_ADDR, SHUFFLED_TOKEN_IDS, TOKEN_ID_POSITIONS, WHITELIST_ADDR,
+    CollectionInfo, Config, RoyaltyInfo, ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES,
+    CONFIG, CURRENT_TOKEN_SUPPLY, CW721_ADDR, SHUFFLED_TOKEN_IDS, TOKEN_ID_POSITIONS,
+    WHITELIST_ADDR,
 };
 use airdropper::{
     msg::ExecuteMsg::{
@@ -17,8 +18,8 @@ use airdropper::{
     msg::{CheckAirdropPromisedMintResponse, CheckAirdropPromisedTokensResponse},
 };
 use cosmwasm_std::{
-    coin, entry_point, to_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo,
-    Order, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    coin, entry_point, to_binary, Addr, BankMsg, Coin, CosmosMsg, Deps, DepsMut, Empty, Env,
+    MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw721_base::{
@@ -178,6 +179,7 @@ pub fn instantiate(
         symbol: msg.symbol.clone(),
         token_code_id: msg.base_fields.token_code_id,
         extension: collection_info,
+        escrow_funds: msg.base_fields.escrow_funds,
     };
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -282,6 +284,7 @@ pub fn execute(
         ExecuteMsg::SubmoduleHook(target, msg) => {
             execute_submodule_hook(deps, env, info, target, msg)
         }
+        ExecuteMsg::DisburseFunds {} => execute_disburse_funds(deps, env, info),
     }
 }
 
@@ -398,6 +401,10 @@ fn execute_update_config(
 
     if msg.token_code_id != config.token_code_id {
         config.token_code_id = msg.token_code_id;
+    }
+
+    if msg.escrow_funds != config.escrow_funds {
+        config.escrow_funds = msg.escrow_funds;
     }
 
     CONFIG.save(deps.storage, &config)?;
@@ -677,9 +684,14 @@ fn _execute_mint(
         // this address absorbs the remaining funds at the end of the calcs
         filtered_royalties.sort_by(|a, b| b.is_primary.cmp(&a.is_primary));
 
+        let mut primary_royalty_addr: Option<Addr> = None;
         let mut remaining_mint_amount: Uint128 = mint_price;
         for (i, royalty) in filtered_royalties.iter().enumerate() {
             if remaining_mint_amount > Uint128::zero() {
+                if primary_royalty_addr.is_none() && royalty.is_primary {
+                    primary_royalty_addr = Some(royalty.addr.clone())
+                }
+
                 let amt: Uint128 = if i == filtered_royalties.len() && royalty.is_primary {
                     remaining_mint_amount
                 } else {
@@ -688,10 +700,39 @@ fn _execute_mint(
 
                 remaining_mint_amount -= amt;
 
+                if config.escrow_funds {
+                    let balance = (BANK_BALANCES.may_load(deps.storage, royalty.addr.clone())?)
+                        .unwrap_or(Uint128::zero());
+
+                    BANK_BALANCES.save(deps.storage, royalty.addr.clone(), &(balance + amt))?;
+                } else {
+                    let msg = BankMsg::Send {
+                        to_address: royalty.addr.clone().into_string(),
+                        amount: vec![coin(u128::from(amt), config.mint_denom.clone())],
+                    };
+
+                    res = res.add_message(msg);
+                }
+            }
+        }
+
+        if remaining_mint_amount > Uint128::zero() {
+            if config.escrow_funds {
+                let balance = (BANK_BALANCES
+                    .may_load(deps.storage, primary_royalty_addr.clone().unwrap())?)
+                .unwrap_or(Uint128::zero());
+
+                BANK_BALANCES.save(
+                    deps.storage,
+                    primary_royalty_addr.unwrap(),
+                    &(balance + remaining_mint_amount),
+                )?;
+            } else {
                 let msg = BankMsg::Send {
-                    to_address: royalty.addr.clone().into_string(),
-                    amount: vec![coin(u128::from(amt), config.mint_denom.clone())],
+                    to_address: primary_royalty_addr.unwrap().into_string(),
+                    amount: vec![coin(u128::from(remaining_mint_amount), config.mint_denom)],
                 };
+
                 res = res.add_message(msg);
             }
         }
@@ -920,6 +961,53 @@ fn execute_submodule_hook(
     Ok(Response::default()
         .add_attribute("method", "submodule_hook")
         .add_message(msg))
+}
+
+fn execute_disburse_funds(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+
+    // EITHER admin (minting contract) or maintainer can update/
+    if config.admin != info.sender && config.maintainer_addr != Some(info.sender) {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let contract_balance: Coin = deps
+        .querier
+        .query_balance(&env.contract.address, config.mint_denom.clone())?;
+
+    let balances: Vec<AddrBal> = BANK_BALANCES
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|item| {
+            let (addr, balance) = item?;
+            Ok(AddrBal { addr, balance })
+        })
+        .collect::<StdResult<Vec<AddrBal>>>()
+        .unwrap();
+
+    let mut remaining_balance: Uint128 = contract_balance.amount;
+    let mut msgs: Vec<BankMsg> = vec![];
+
+    for addr_bal in balances {
+        if addr_bal.balance > Uint128::zero() && remaining_balance >= addr_bal.balance {
+            msgs.push(BankMsg::Send {
+                to_address: addr_bal.addr.clone().into_string(),
+                amount: vec![coin(
+                    u128::from(addr_bal.balance),
+                    config.mint_denom.clone(),
+                )],
+            });
+
+            remaining_balance -= addr_bal.balance;
+            BANK_BALANCES.save(deps.storage, addr_bal.addr, &Uint128::zero())?;
+        }
+    }
+    Ok(Response::default()
+        .add_attribute("method", "disburse_funds")
+        .add_messages(msgs))
 }
 
 // #region helper functions
@@ -1232,6 +1320,12 @@ fn check_public_mint(deps: Deps, env: Env, info: &MessageInfo) -> Result<bool, C
 
     Ok(can_mint)
 }
+
+// #endregion
+
+// #region funds
+
+//fn send_funds()
 
 // #endregion
 
