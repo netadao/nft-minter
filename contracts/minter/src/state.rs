@@ -10,21 +10,28 @@ pub struct Config {
     pub maintainer_addr: Option<Addr>,
     pub start_time: Timestamp,
     pub end_time: Option<Timestamp>,
-    pub max_token_supply: u32,
+    pub total_token_supply: u32,
     pub max_per_address_mint: u32,
+    pub max_per_address_bundle: u32,
     pub mint_price: Uint128,
     pub mint_denom: String,
-    pub base_token_uri: String,
-    pub name: String,
-    pub symbol: String,
     pub token_code_id: u64,
-    pub extension: CollectionInfo,
+    pub extension: SharedCollectionInfo,
     pub escrow_funds: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
 pub struct CollectionInfo {
+    pub id: u64,
+    pub token_supply: u32,
+    pub name: String,
+    pub symbol: String,
+    pub base_token_uri: String,
     pub secondary_metadata_uri: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
+pub struct SharedCollectionInfo {
     pub mint_revenue_share: Vec<RoyaltyInfo>,
     pub secondary_market_royalties: Vec<RoyaltyInfo>,
 }
@@ -39,11 +46,17 @@ pub struct RoyaltyInfo {
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const CURRENT_TOKEN_SUPPLY: Item<u32> = Item::new("current_token_supply");
 pub const ADDRESS_MINT_TRACKER: Map<Addr, u32> = Map::new("address_mint_tracker");
+pub const BUNDLE_MINT_TRACKER: Map<Addr, u32> = Map::new("bundle_mint_tracker");
 // (idx, tokenid)
-pub const SHUFFLED_TOKEN_IDS: Map<u32, u32> = Map::new("shuffled_token_ids");
+pub const SHUFFLED_BASE_TOKEN_IDS: Map<u32, u32> = Map::new("shuffled_base_token_ids");
 // (tokenid, idx)
-pub const TOKEN_ID_POSITIONS: Map<u32, u32> = Map::new("token_id_positions");
-pub const CW721_ADDR: Item<Addr> = Item::new("cw721_addr");
+pub const BASE_TOKEN_ID_POSITIONS: Map<u32, u32> = Map::new("base_token_id_positions");
+pub const BASE_TOKEN_ID_CW721_ID: Map<u32, String> = Map::new("base_token_id_cw721_id");
+pub const CW721_ID_BASE_TOKEN_ID: Map<String, u32> = Map::new("cw721_id_base_token_id");
+pub const CW721_COLLECTION_INFO: Map<u64, CollectionInfo> = Map::new("cw721_collection_info");
+pub const CW721_ADDRS: Map<u64, Addr> = Map::new("cw721_addrs");
+pub const COLLECTION_CURRENT_TOKEN_SUPPLY: Map<u64, u32> =
+    Map::new("collection_current_token_supply");
 pub const AIRDROPPER_ADDR: Item<Addr> = Item::new("airdropper_addr");
 pub const WHITELIST_ADDR: Item<Addr> = Item::new("whitelist_addr");
 pub const BANK_BALANCES: Map<Addr, Uint128> = Map::new("bank_balances");

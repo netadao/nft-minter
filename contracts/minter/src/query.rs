@@ -5,8 +5,8 @@ use cw_utils::maybe_addr;
 
 use crate::msg::{AddrBal, AddressValMsg, ConfigResponse, QueryMsg, TokenDataResponse};
 use crate::state::{
-    ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES, CONFIG, CURRENT_TOKEN_SUPPLY, CW721_ADDR,
-    WHITELIST_ADDR,
+    ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES, CONFIG, CURRENT_TOKEN_SUPPLY,
+    CW721_ADDRS, WHITELIST_ADDR,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -34,12 +34,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         ),
         */
         QueryMsg::GetRemainingTokens {} => query_get_remaining_tokens(deps, env),
+        QueryMsg::GetCW721Addrs {} => query_get_cw721_addrs(deps, env),
     }
 }
 
 fn query_config(deps: Deps, _env: Env) -> StdResult<ConfigResponse> {
     let config = CONFIG.load(deps.storage)?;
-    let cw721_addr = CW721_ADDR.may_load(deps.storage)?;
     let airdropper_addr = AIRDROPPER_ADDR.may_load(deps.storage)?;
     let whitelist_addr = WHITELIST_ADDR.may_load(deps.storage)?;
 
@@ -48,15 +48,12 @@ fn query_config(deps: Deps, _env: Env) -> StdResult<ConfigResponse> {
         maintainer_addr: config.maintainer_addr,
         start_time: config.start_time,
         end_time: config.end_time,
-        max_token_supply: config.max_token_supply,
+        total_token_supply: config.total_token_supply,
         max_per_address_mint: config.max_per_address_mint,
+        max_per_address_bundle: config.max_per_address_bundle,
         mint_price: config.mint_price,
         mint_denom: config.mint_denom,
-        base_token_uri: config.base_token_uri,
-        name: config.name,
-        symbol: config.symbol,
         token_code_id: config.token_code_id,
-        cw721_addr,
         airdropper_addr,
         whitelist_addr,
         extension: config.extension,
@@ -105,7 +102,7 @@ fn query_get_remaining_tokens(deps: Deps, _env: Env) -> StdResult<Binary> {
     let remaining_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
 
     to_binary(&TokenDataResponse {
-        max_token_supply: config.max_token_supply,
+        total_token_supply: config.total_token_supply,
         remaining_token_supply,
     })
 }
@@ -131,6 +128,21 @@ fn query_get_escrow_balances(
         .collect::<StdResult<Vec<AddrBal>>>();
 
     to_binary(&balances.unwrap())
+}
+
+fn query_get_cw721_addrs(deps: Deps, _env: Env) -> StdResult<Binary> {
+    let addrs = CW721_ADDRS
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|item| {
+            let (coll_id, addr) = item?;
+            Ok(AddressValMsg {
+                address: addr.into_string(),
+                value: coll_id as u32,
+            })
+        })
+        .collect::<StdResult<Vec<AddressValMsg>>>();
+
+    to_binary(&addrs.unwrap())
 }
 
 /*

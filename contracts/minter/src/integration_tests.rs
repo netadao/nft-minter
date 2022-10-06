@@ -4,12 +4,12 @@ mod tests {
     use crate::msg::{
         AddrBal, Admin, BaseInitMsg, CollectionInfoMsg, ConfigResponse, ExecuteMsg,
         ExecutionTarget, InstantiateMsg, ModuleInstantiateInfo, QueryMsg, RoyaltyInfoMsg,
-        TokenDataResponse,
+        SharedCollectionInfoMsg, TokenDataResponse, AddressValMsg,
     };
     use cosmwasm_std::{
         coin, coins, to_binary, Addr, Coin, CosmosMsg, Empty, Timestamp, Uint128, WasmMsg,
     };
-    use cw721_base::{MinterResponse, QueryMsg as Cw721QueryMsg};
+    //use cw721_base::{MinterResponse, QueryMsg as Cw721QueryMsg};
     use cw_multi_test::{App, AppBuilder, BankSudo, Contract, ContractWrapper, Executor, SudoMsg};
     use prost::Message;
 
@@ -93,8 +93,11 @@ mod tests {
     const MINT_END_TIME: u64 = 1657801750;
     const EXCESSIVE_END_TIME: u64 = 2657801750;
 
+    const INSTANTIATE_AIRDROPPER_REPLY_ID: u64 = 1;
+    const INSTANTIATE_WHITELIST_REPLY_ID: u64 = 2;
+
     const MAX_PER_ADDRESS_MINT: u32 = 4;
-    const MAX_TOKEN_SUPPLY: u32 = 5;
+    //const MAX_TOKEN_SUPPLY: u32 = 5;
 
     fn mock_app() -> App {
         AppBuilder::new().build(|router, _, storage| {
@@ -158,8 +161,7 @@ mod tests {
             });
         }
 
-        let collection_info: CollectionInfoMsg = CollectionInfoMsg {
-            secondary_metadata_uri: None,
+        let collection_info: SharedCollectionInfoMsg = SharedCollectionInfoMsg {
             mint_revenue_share: vec![
                 RoyaltyInfoMsg {
                     address: ADMIN.to_owned(),
@@ -186,6 +188,16 @@ mod tests {
             ],
         };
 
+        let coll_info_msgs: Vec<CollectionInfoMsg> = vec![CollectionInfoMsg {
+            name: "TESTNFTPROJECT".to_string(),
+            symbol: "TESTNFT".to_string(),
+            base_token_uri: "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
+            token_supply: 5,
+            secondary_metadata_uri: Some(
+                "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
+            ),
+        }];
+
         let msg = InstantiateMsg {
             base_fields: BaseInitMsg {
                 maintainer_address: Some(MAINTAINER_ADDR.to_string()),
@@ -194,21 +206,19 @@ mod tests {
                 max_per_address_mint: MAX_PER_ADDRESS_MINT,
                 mint_price: Uint128::from(MINT_PRICE),
                 mint_denom: NATIVE_DENOM.to_owned(),
-                base_token_uri: "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
-                token_code_id: cw721_id,
                 escrow_funds: false,
+                max_per_address_bundle: 1,
             },
             whitelist_address: None,
             airdrop_address: None,
 
-            max_token_supply: MAX_TOKEN_SUPPLY,
-
+            token_code_id: cw721_id,
             name: "TESTNFTPROJECT".to_string(),
-            symbol: "TESTNFT".to_string(),
 
             airdropper_instantiate_info: airdropper_module_instantiate,
             whitelist_instantiate_info: whitelist_module_instantiate,
             extension: collection_info,
+            collection_infos: coll_info_msgs,
         };
 
         let cw_template_contract_addr = app
@@ -291,16 +301,13 @@ mod tests {
                 .unwrap();
             println!("config {:?}", config);
 
-            let nft_addr = config.cw721_addr.unwrap();
-
-            println!("nft_addr {:?}", nft_addr);
+            //let nft_addr = config.cw721_addr.unwrap();
+            //println!("nft_addr {:?}", nft_addr);
 
             let airdropper_addr = config.airdropper_addr;
-
             println!("airdropper_addr {:?}", airdropper_addr);
 
             let whitelist_addr = config.whitelist_addr;
-
             println!("whitelist_addr {:?}", whitelist_addr);
             /*
             let shuffled_token_ids: TokensResponse = app
@@ -316,6 +323,8 @@ mod tests {
 
             println!("shuffled_token_ids {:?}", shuffled_token_ids);
             */
+
+            /*
             let nft_minter_query: MinterResponse = app
                 .wrap()
                 .query_wasm_smart(&nft_addr.to_string(), &Cw721QueryMsg::Minter {})
@@ -327,6 +336,7 @@ mod tests {
                 cw_template_contract.addr().to_string(),
                 nft_minter_query.minter
             );
+            */
 
             let balance = app
                 .wrap()
@@ -380,10 +390,9 @@ mod tests {
                 start_time: config.start_time,
                 end_time: config.end_time,
                 max_per_address_mint: config.max_per_address_mint,
+                max_per_address_bundle: config.max_per_address_bundle,
                 mint_price: config.mint_price,
                 mint_denom: config.mint_denom,
-                base_token_uri: config.base_token_uri,
-                token_code_id: config.token_code_id,
                 escrow_funds: false,
             };
 
@@ -801,7 +810,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(INVALID),
                 cw_template_contract.addr(),
-                &ExecuteMsg::InitSubmodule(module_info.clone()),
+                &ExecuteMsg::InitSubmodule(INSTANTIATE_AIRDROPPER_REPLY_ID, module_info.clone()),
                 &[],
             )
             .unwrap_err();
@@ -809,7 +818,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::InitSubmodule(module_info),
+                &ExecuteMsg::InitSubmodule(INSTANTIATE_AIRDROPPER_REPLY_ID, module_info),
                 &[],
             )
             .unwrap();
@@ -871,7 +880,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(INVALID),
                 cw_template_contract.addr(),
-                &ExecuteMsg::InitSubmodule(module_info.clone()),
+                &ExecuteMsg::InitSubmodule(INSTANTIATE_WHITELIST_REPLY_ID, module_info.clone()),
                 &[],
             )
             .unwrap_err();
@@ -879,7 +888,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::InitSubmodule(module_info),
+                &ExecuteMsg::InitSubmodule(INSTANTIATE_WHITELIST_REPLY_ID, module_info),
                 &[],
             )
             .unwrap();
@@ -2571,10 +2580,9 @@ mod tests {
                 start_time: config.start_time,
                 end_time: config.end_time,
                 max_per_address_mint: config.max_per_address_mint,
+                max_per_address_bundle: config.max_per_address_bundle,
                 mint_price: config.mint_price,
                 mint_denom: config.mint_denom.clone(),
-                base_token_uri: config.base_token_uri,
-                token_code_id: config.token_code_id,
                 escrow_funds: false,
             };
 
@@ -3399,6 +3407,22 @@ mod tests {
                 .unwrap();
             println!("###config {:?}", config);
 
+            let cw721_addrs: Vec<AddressValMsg> = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCW721Addrs {})
+                .unwrap();
+            println!("### cw721_addrs {:?}", cw721_addrs);
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens {},
+                )
+                .unwrap();
+
+            println!("### token_data {:?}", token_data);
+
             let maintainer_address: Option<String> = config
                 .maintainer_addr
                 .clone()
@@ -3409,10 +3433,9 @@ mod tests {
                 start_time: config.start_time,
                 end_time: config.end_time,
                 max_per_address_mint: config.max_per_address_mint,
+                max_per_address_bundle: config.max_per_address_bundle,
                 mint_price: config.mint_price,
                 mint_denom: config.mint_denom,
-                base_token_uri: config.base_token_uri,
-                token_code_id: config.token_code_id,
                 escrow_funds: false,
             };
 
