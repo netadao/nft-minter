@@ -1,3 +1,0 @@
-# Overview
-
-shrug emoji

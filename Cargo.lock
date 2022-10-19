@@ -571,7 +571,6 @@ dependencies = [
  "cw20-base",
  "cw721",
  "cw721-base",
- "neta-dao-configs",
  "prost",
  "rand_core 0.6.3",
  "rand_xoshiro",
@@ -582,21 +581,6 @@ dependencies = [
  "thiserror",
  "url",
  "whitelist",
-]
-
-[[package]]
-name = "neta-dao-configs"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-multi-test",
- "cw-storage-plus",
- "cw2",
- "schemars",
- "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -621,12 +605,6 @@ dependencies = [
  "spki",
  "zeroize",
 ]
-
-[[package]]
-name = "ppv-lite86"
-version = "0.2.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb9f9e6e233e5c4a35559a617bf40a4ec447db2e84c20b55a6f83167b7e57872"
 
 [[package]]
 name = "proc-macro2"
@@ -681,18 +659,6 @@ version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
- "libc",
- "rand_chacha",
- "rand_core 0.6.3",
-]
-
-[[package]]
-name = "rand_chacha"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
-dependencies = [
- "ppv-lite86",
  "rand_core 0.6.3",
 ]
 
@@ -855,8 +821,7 @@ dependencies = [
 [[package]]
 name = "shuffle"
 version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fecbe806be0726e22a6192ce0ec2f90e0798946ae0cbc2c10c7a3c68cae4eb2"
+source = "git+https://github.com/webmaster128/shuffle?branch=rm-getrandom#2c267f41a590c85a327c9ffd8796cf06fa5cb9e9"
 dependencies = [
  "bitvec",
  "rand",
