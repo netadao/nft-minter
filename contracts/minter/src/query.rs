@@ -5,8 +5,8 @@ use cw_utils::maybe_addr;
 
 use crate::msg::{AddrBal, AddressValMsg, ConfigResponse, QueryMsg, TokenDataResponse};
 use crate::state::{
-    ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES, CONFIG, CURRENT_TOKEN_SUPPLY,
-    CW721_ADDRS, WHITELIST_ADDR,
+    CollectionInfo, ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES, CONFIG,
+    CURRENT_TOKEN_SUPPLY, CW721_ADDRS, WHITELIST_ADDR,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -22,7 +22,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetEscrowBalances { start_after, limit } => {
             query_get_escrow_balances(deps, env, start_after, limit)
         }
-        /*
+
         QueryMsg::GetShuffledTokenIds { start_after, limit } => to_binary(
             &query_get_shuffled_token_ids(deps, env, start_after, limit)?,
         ),
@@ -32,7 +32,25 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetShuffledTokenPosition { start_after, limit } => to_binary(
             &query_get_shuffled_token_position(deps, env, start_after, limit)?,
         ),
-        */
+        QueryMsg::GetCw721IdBaseTokenIds { start_after, limit } => to_binary(
+            &query_get_cw721_id_base_token_ids(deps, env, start_after, limit)?,
+        ),
+        QueryMsg::GetBaseTokenIdCw721Id { start_after, limit } => to_binary(
+            &query_get_base_token_id_cw721_id(deps, env, start_after, limit)?,
+        ),
+        QueryMsg::GetCw721ShuffledTokenIds { start_after, limit } => to_binary(
+            &query_get_cw721_shuffled_token_ids(deps, env, start_after, limit)?,
+        ),
+        QueryMsg::GetCw721CollectionInfo { start_after, limit } => to_binary(
+            &query_get_cw721_collection_info(deps, env, start_after, limit)?,
+        ),
+        QueryMsg::GetBundleMintTracker { start_after, limit } => to_binary(
+            &query_get_bundle_mint_tracker(deps, env, start_after, limit)?,
+        ),
+        QueryMsg::GetCollectionCurrentTokenSupply { start_after, limit } => to_binary(
+            &query_get_collection_current_supply(deps, env, start_after, limit)?,
+        ),
+
         QueryMsg::GetRemainingTokens {} => query_get_remaining_tokens(deps, env),
         QueryMsg::GetCW721Addrs {} => query_get_cw721_addrs(deps, env),
     }
@@ -50,13 +68,16 @@ fn query_config(deps: Deps, _env: Env) -> StdResult<ConfigResponse> {
         end_time: config.end_time,
         total_token_supply: config.total_token_supply,
         max_per_address_mint: config.max_per_address_mint,
-        max_per_address_bundle: config.max_per_address_bundle,
+        max_per_address_bundle_mint: config.max_per_address_bundle_mint,
         mint_price: config.mint_price,
+        bundle_mint_price: config.bundle_mint_price,
         mint_denom: config.mint_denom,
         token_code_id: config.token_code_id,
         airdropper_addr,
         whitelist_addr,
         extension: config.extension,
+        bundle_enabled: config.bundle_enabled,
+        bundle_completed: config.bundle_completed,
     })
 }
 
@@ -145,7 +166,12 @@ fn query_get_cw721_addrs(deps: Deps, _env: Env) -> StdResult<Binary> {
     to_binary(&addrs.unwrap())
 }
 
-/*
+use crate::state::{
+    BASE_TOKEN_ID_CW721_ID, BASE_TOKEN_ID_POSITIONS, BUNDLE_MINT_TRACKER,
+    COLLECTION_CURRENT_TOKEN_SUPPLY, CW721_COLLECTION_INFO, CW721_ID_BASE_TOKEN_ID,
+    CW721_SHUFFLED_TOKEN_IDS, SHUFFLED_BASE_TOKEN_IDS,
+};
+
 fn query_get_token_indices(
     deps: Deps,
     _env: Env,
@@ -156,7 +182,7 @@ fn query_get_token_indices(
 
     let limit = limit.unwrap_or(100).min(100) as usize;
 
-    let tokens = TOKEN_ID_POSITIONS
+    let tokens = BASE_TOKEN_ID_POSITIONS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
@@ -178,7 +204,7 @@ fn query_get_shuffled_token_position(
 
     let limit = limit.unwrap_or(100).min(100) as usize;
 
-    let tokens = SHUFFLED_TOKEN_IDS
+    let tokens = SHUFFLED_BASE_TOKEN_IDS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
@@ -200,7 +226,7 @@ fn query_get_shuffled_token_ids(
 
     let limit = limit.unwrap_or(100).min(100) as usize;
 
-    let tokens = SHUFFLED_TOKEN_IDS
+    let tokens = SHUFFLED_BASE_TOKEN_IDS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| item.unwrap().1)
@@ -208,4 +234,136 @@ fn query_get_shuffled_token_ids(
 
     Ok(tokens)
 }
-*/
+
+fn query_get_cw721_id_base_token_ids(
+    deps: Deps,
+    _env: Env,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<Vec<(String, u32)>> {
+    let start = start_after.map(Bound::exclusive);
+
+    let limit = limit.unwrap_or(100).min(100) as usize;
+
+    let tokens = CW721_ID_BASE_TOKEN_ID
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (token_id, position) = item?;
+            Ok((token_id, position))
+        })
+        .collect::<StdResult<Vec<_>>>();
+
+    Ok(tokens.unwrap())
+}
+
+fn query_get_base_token_id_cw721_id(
+    deps: Deps,
+    _env: Env,
+    start_after: Option<u32>,
+    limit: Option<u32>,
+) -> StdResult<Vec<(u32, String)>> {
+    let start = start_after.map(Bound::exclusive);
+
+    let limit = limit.unwrap_or(100).min(100) as usize;
+
+    let tokens = BASE_TOKEN_ID_CW721_ID
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (token_id, position) = item?;
+            Ok((token_id, position))
+        })
+        .collect::<StdResult<Vec<_>>>();
+
+    Ok(tokens.unwrap())
+}
+
+fn query_get_cw721_shuffled_token_ids(
+    deps: Deps,
+    _env: Env,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> StdResult<Vec<(u64, Vec<u32>)>> {
+    let start = start_after.map(Bound::exclusive);
+
+    let limit = limit.unwrap_or(100).min(100) as usize;
+
+    let tokens = CW721_SHUFFLED_TOKEN_IDS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (token_id, position) = item?;
+            Ok((token_id, position))
+        })
+        .collect::<StdResult<Vec<_>>>();
+
+    Ok(tokens.unwrap())
+}
+
+fn query_get_cw721_collection_info(
+    deps: Deps,
+    _env: Env,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> StdResult<Vec<(u64, CollectionInfo)>> {
+    let start = start_after.map(Bound::exclusive);
+
+    let limit = limit.unwrap_or(100).min(100) as usize;
+
+    let tokens = CW721_COLLECTION_INFO
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (token_id, position) = item?;
+            Ok((token_id, position))
+        })
+        .collect::<StdResult<Vec<_>>>();
+
+    Ok(tokens.unwrap())
+}
+
+fn query_get_bundle_mint_tracker(
+    deps: Deps,
+    _env: Env,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<Vec<(Addr, u32)>> {
+    let start_after = maybe_addr(deps.api, start_after)?;
+    let start = start_after.map(Bound::<Addr>::exclusive);
+
+    let limit = limit.unwrap_or(100).min(100) as usize;
+
+    let tokens = BUNDLE_MINT_TRACKER
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (token_id, position) = item?;
+            Ok((token_id, position))
+        })
+        .collect::<StdResult<Vec<_>>>();
+
+    Ok(tokens.unwrap())
+}
+
+fn query_get_collection_current_supply(
+    deps: Deps,
+    _env: Env,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> StdResult<Vec<(u64, u32)>> {
+    let start = start_after.map(Bound::exclusive);
+
+    let limit = limit.unwrap_or(100).min(100) as usize;
+
+    let tokens = COLLECTION_CURRENT_TOKEN_SUPPLY
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (token_id, position) = item?;
+            Ok((token_id, position))
+        })
+        .collect::<StdResult<Vec<_>>>();
+
+    Ok(tokens.unwrap())
+}

@@ -42,14 +42,16 @@ pub struct BaseInitMsg {
     /// max mint per address
     pub max_per_address_mint: u32,
     /// max bundles per address
-    pub max_per_address_bundle: u32,
+    pub max_per_address_bundle_mint: u32,
     /// mint price fee for PUBLIC mint. This can be overridden by WL mint_price
     pub mint_price: Uint128,
+    pub bundle_mint_price: Uint128,
     /// only native and ibc/ denoms are allowed. onus is on user to verify if
     /// they manually instantiate this contract. otherwise, controlled via frontend
     pub mint_denom: String,
     /// determines if you want to escrow funds or just send funds per tx
     pub escrow_funds: bool,
+    pub bundle_enabled: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
@@ -164,19 +166,24 @@ pub enum ExecuteMsg {
     /// General path for whitelist and public mints
     /// whitelist requires eligibility, public mint right now does not
     Mint {},
+    MintBundle {},
     /// AirdropMint allow users to mint an NFT that was promised to them
     /// feeless (`mint_price` = 0). the airdrop promised mint is managed in
     /// the contract attached to `AIRDROPPER_ADDR`
     /// the optional `minter_address` is if a maintainer wants to `push`
     /// an nft to the address rather than having the recipient come `pull`
     /// the promised mint by executing this function themselves
-    AirdropMint { minter_address: Option<String> },
+    AirdropMint {
+        minter_address: Option<String>,
+    },
     /// airdrop claim is intended for 1:1s or other creator criteria for
     /// granting ownership of specific `token_id`s. This is controlled in the
     /// contract attached to `AIRDROPPER_ADDR`
     /// the optional `minter_address` allows an address to `pull` (execute
     /// this themselves) or an admin to `push` the token to them
-    AirdropClaim { minter_address: Option<String> },
+    AirdropClaim {
+        minter_address: Option<String>,
+    },
     /// Calls the attached airdropper contract and removes the `token_id`s
     /// from `SHUFFLED_TOKEN_IDS` and `TOKEN_ID_POSITIONS` so they will not
     /// accidentally get minted.  Once complete, it'll shuffle the token order
@@ -211,7 +218,7 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-    /*
+
     /// TODO: REMOVE, TESTING ONLY
     GetShuffledTokenIds {
         /// token_id
@@ -228,7 +235,37 @@ pub enum QueryMsg {
         start_after: Option<u32>,
         limit: Option<u32>,
     },
-    */
+    GetCw721IdBaseTokenIds {
+        /// token_id
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    GetBaseTokenIdCw721Id {
+        /// token_id
+        start_after: Option<u32>,
+        limit: Option<u32>,
+    },
+    GetCw721ShuffledTokenIds {
+        /// token_id
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+    GetCw721CollectionInfo {
+        /// token_id
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+    GetBundleMintTracker {
+        /// token_id
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    GetCollectionCurrentTokenSupply {
+        /// token_id
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+
     /// Gets count of remaining tokens available in `CURRENT_TOKEN_SUPPLY`
     GetRemainingTokens {},
     /// Gets all the cw721 addresses attached to this contract
@@ -252,9 +289,10 @@ pub struct ConfigResponse {
     /// maximum mints per address
     pub max_per_address_mint: u32,
     /// max bundles per address
-    pub max_per_address_bundle: u32,
+    pub max_per_address_bundle_mint: u32,
     /// mint price for the public mint
     pub mint_price: Uint128,
+    pub bundle_mint_price: Uint128,
     /// only native and ibc/ denoms are allowed. onus is on user to verify if
     /// they manually instantiate this contract. otherwise, controlled via frontend
     pub mint_denom: String,
@@ -266,6 +304,8 @@ pub struct ConfigResponse {
     pub whitelist_addr: Option<Addr>,
     /// data we'll pass to the cw721 contract when a token is minted
     pub extension: SharedCollectionInfo,
+    pub bundle_enabled: bool,
+    pub bundle_completed: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
