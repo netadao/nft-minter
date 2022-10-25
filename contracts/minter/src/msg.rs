@@ -1,4 +1,4 @@
-use crate::state::CollectionInfo;
+use crate::state::SharedCollectionInfo;
 use cosmwasm_std::{Addr, Binary, CosmosMsg, Empty, Timestamp, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -6,14 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub base_fields: BaseInitMsg,
-    /// max token supply
-    /// v2TODO: allow uncapped
-    /// v2TODO: allow update to this field
-    pub max_token_supply: u32,
     /// name of nft project
     pub name: String,
-    /// symbol for nft project, this seems really optional for cw721 standard
-    pub symbol: String,
     /// airdropper address if it was manaully instantiated elsewhere
     pub airdrop_address: Option<String>,
     /// airdropper instantiation info must have either or none
@@ -24,8 +18,12 @@ pub struct InstantiateMsg {
     /// whitelist contract instantiation info. must have either or none
     /// against `whitelist_address`
     pub whitelist_instantiate_info: Option<ModuleInstantiateInfo>,
+    /// code id for cw721 contract
+    pub token_code_id: u64,
+    /// vec of collection info
+    pub collection_infos: Vec<CollectionInfoMsg>,
     /// extension info that will be passed to
-    pub extension: CollectionInfoMsg,
+    pub extension: SharedCollectionInfoMsg,
 }
 
 /// Base fields that are used for instantiation
@@ -43,27 +41,39 @@ pub struct BaseInitMsg {
     pub end_time: Option<Timestamp>,
     /// max mint per address
     pub max_per_address_mint: u32,
+    /// max bundles per address
+    pub max_per_address_bundle_mint: u32,
     /// mint price fee for PUBLIC mint. This can be overridden by WL mint_price
     pub mint_price: Uint128,
+    pub bundle_mint_price: Uint128,
     /// only native and ibc/ denoms are allowed. onus is on user to verify if
     /// they manually instantiate this contract. otherwise, controlled via frontend
     pub mint_denom: String,
-    /// uri for the metadata. intended to be a static metadata for the nft
-    pub base_token_uri: String,
-    /// code id for cw721 contract
-    pub token_code_id: u64,
     /// determines if you want to escrow funds or just send funds per tx
     pub escrow_funds: bool,
+    pub bundle_enabled: bool,
 }
 
-/// Collection Info that stores revenue/royalty split as well the optional secondary metadata
-/// uri that will allow creators to add evolving metadata in addition to the static metadata
-/// that is in `base_token_uri`
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
 pub struct CollectionInfoMsg {
+    /// token supply for this collection
+    pub token_supply: u32,
+    /// name of nft project
+    pub name: String,
+    /// symbol for nft project, this seems really optional for cw721 standard
+    pub symbol: String,
+    /// uri for the metadata. intended to be a static metadata for the nft
+    pub base_token_uri: String,
     /// optional secondary metadata resource that is intended to be dynamic
     /// and extensible to the creator's desires
     pub secondary_metadata_uri: Option<String>,
+}
+
+/// Shared Collection Info that stores revenue/royalty split as well the optional secondary metadata
+/// uri that will allow creators to add evolving metadata in addition to the static metadata
+/// that is in `base_token_uri`
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
+pub struct SharedCollectionInfoMsg {
     /// initial sales split. has a hardcap of 10000 bps equating to 100.00%
     pub mint_revenue_share: Vec<RoyaltyInfoMsg>,
     /// secondary sales royalty split. hardcap of 5000bps equating to 50.00%
@@ -147,9 +157,8 @@ pub enum ExecuteMsg {
     /// Uses `BaseInitMsg` to update the the config
     UpdateConfig(BaseInitMsg),
     /// (Re)Initializes submodules if a user desires.  This will replace the
-    /// existing submodule that its targeting. dependent on our reply_id's
-    /// matching the code_id that is deployed to the chain
-    InitSubmodule(ModuleInstantiateInfo),
+    /// existing submodule that its targeting.
+    InitSubmodule(u64, ModuleInstantiateInfo),
     /// Update the attached `WHITELIST_ADDR`
     UpdateWhitelistAddress(Option<String>),
     /// Update the attached `AIRDROPPER_ADDR`
@@ -157,19 +166,24 @@ pub enum ExecuteMsg {
     /// General path for whitelist and public mints
     /// whitelist requires eligibility, public mint right now does not
     Mint {},
+    MintBundle {},
     /// AirdropMint allow users to mint an NFT that was promised to them
     /// feeless (`mint_price` = 0). the airdrop promised mint is managed in
     /// the contract attached to `AIRDROPPER_ADDR`
     /// the optional `minter_address` is if a maintainer wants to `push`
     /// an nft to the address rather than having the recipient come `pull`
     /// the promised mint by executing this function themselves
-    AirdropMint { minter_address: Option<String> },
+    AirdropMint {
+        minter_address: Option<String>,
+    },
     /// airdrop claim is intended for 1:1s or other creator criteria for
     /// granting ownership of specific `token_id`s. This is controlled in the
     /// contract attached to `AIRDROPPER_ADDR`
     /// the optional `minter_address` allows an address to `pull` (execute
     /// this themselves) or an admin to `push` the token to them
-    AirdropClaim { minter_address: Option<String> },
+    AirdropClaim {
+        minter_address: Option<String>,
+    },
     /// Calls the attached airdropper contract and removes the `token_id`s
     /// from `SHUFFLED_TOKEN_IDS` and `TOKEN_ID_POSITIONS` so they will not
     /// accidentally get minted.  Once complete, it'll shuffle the token order
@@ -204,7 +218,7 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-    /*
+
     /// TODO: REMOVE, TESTING ONLY
     GetShuffledTokenIds {
         /// token_id
@@ -221,9 +235,41 @@ pub enum QueryMsg {
         start_after: Option<u32>,
         limit: Option<u32>,
     },
-    */
+    GetCw721IdBaseTokenIds {
+        /// token_id
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    GetBaseTokenIdCw721Id {
+        /// token_id
+        start_after: Option<u32>,
+        limit: Option<u32>,
+    },
+    GetCw721ShuffledTokenIds {
+        /// token_id
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+    GetCw721CollectionInfo {
+        /// token_id
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+    GetBundleMintTracker {
+        /// token_id
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    GetCollectionCurrentTokenSupply {
+        /// token_id
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+
     /// Gets count of remaining tokens available in `CURRENT_TOKEN_SUPPLY`
     GetRemainingTokens {},
+    /// Gets all the cw721 addresses attached to this contract
+    GetCW721Addrs {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -239,37 +285,48 @@ pub struct ConfigResponse {
     pub end_time: Option<Timestamp>,
     /// maximum token supply
     /// TODO: move to uncapped for special project
-    pub max_token_supply: u32,
+    pub total_token_supply: u32,
     /// maximum mints per address
     pub max_per_address_mint: u32,
+    /// max bundles per address
+    pub max_per_address_bundle_mint: u32,
     /// mint price for the public mint
     pub mint_price: Uint128,
+    pub bundle_mint_price: Uint128,
     /// only native and ibc/ denoms are allowed. onus is on user to verify if
     /// they manually instantiate this contract. otherwise, controlled via frontend
     pub mint_denom: String,
-    /// base uri for the cw721. stores the location of the metadata for all nfts
-    pub base_token_uri: String,
-    /// useless? name for the token
-    pub name: String,
-    /// useless? symbol for the token
-    pub symbol: String,
     /// cw721 contract code id
     pub token_code_id: u64,
-    /// address to contract that holds the nfts"
-    pub cw721_addr: Option<Addr>,
     /// address to contract that we'll read promised mints and token_ids data from
     pub airdropper_addr: Option<Addr>,
     /// address to contract that we'll read whitelist data from
     pub whitelist_addr: Option<Addr>,
     /// data we'll pass to the cw721 contract when a token is minted
-    pub extension: CollectionInfo,
+    pub extension: SharedCollectionInfo,
+    pub bundle_enabled: bool,
+    pub bundle_completed: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct CollectionInfoResponse {
+    /// address to contract that holds the nfts"
+    pub cw721_addr: Option<Addr>,
+    /// useless? name for the token
+    pub name: String,
+    /// useless? symbol for the token
+    pub symbol: String,
+    pub token_supply: u64,
+    /// base uri for the cw721. stores the location of the metadata for all nfts
+    pub base_token_uri: String,
+    pub secondary_metadata_uri: String,
 }
 
 /// response object that has token supply data
 /// was used for testing
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TokenDataResponse {
-    pub max_token_supply: u32,
+    pub total_token_supply: u32,
     pub remaining_token_supply: u32,
 }
 

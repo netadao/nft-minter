@@ -78,6 +78,9 @@ pub enum ContractError {
     #[error("Max mints reached: {0}")]
     PublicMaxMintReached(u32),
 
+    #[error("Max bundles minted: {0}")]
+    BundleMaxMintReached(u32),
+
     #[error("Premint window not yet open")]
     BeforePremintStarttime {},
 
@@ -86,6 +89,12 @@ pub enum ContractError {
 
     #[error("Premint Closed")]
     AirdropClosed {},
+
+    #[error("Bundle mint has completed. No more bundles available.")]
+    BundleMintCompleted {},
+
+    #[error("Bundle Mints Disabled")]
+    BundleMintDisabled {},
 
     #[error("No promised mints found")]
     NoPromisedMints {},

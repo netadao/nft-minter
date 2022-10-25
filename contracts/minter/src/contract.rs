@@ -1,12 +1,14 @@
 use crate::error::ContractError;
 use crate::msg::{
-    AddrBal, Admin, BaseInitMsg, CollectionInfoMsg, ExecuteMsg, ExecutionTarget, InstantiateMsg,
-    MintType, ModuleInstantiateInfo, RoyaltyInfoMsg,
+    AddrBal, AddressValMsg, Admin, BaseInitMsg, CollectionInfoMsg, ExecuteMsg, ExecutionTarget,
+    InstantiateMsg, MintType, ModuleInstantiateInfo, RoyaltyInfoMsg, SharedCollectionInfoMsg,
 };
 use crate::state::{
-    CollectionInfo, Config, RoyaltyInfo, ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES,
-    CONFIG, CURRENT_TOKEN_SUPPLY, CW721_ADDR, SHUFFLED_TOKEN_IDS, TOKEN_ID_POSITIONS,
-    WHITELIST_ADDR,
+    CollectionInfo, Config, RoyaltyInfo, SharedCollectionInfo, ADDRESS_MINT_TRACKER,
+    AIRDROPPER_ADDR, BANK_BALANCES, BASE_TOKEN_ID_CW721_ID, BASE_TOKEN_ID_POSITIONS,
+    BUNDLE_MINT_TRACKER, COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG, CURRENT_TOKEN_SUPPLY,
+    CW721_ADDRS, CW721_COLLECTION_INFO, CW721_ID_BASE_TOKEN_ID, CW721_SHUFFLED_TOKEN_IDS,
+    SHUFFLED_BASE_TOKEN_IDS, WHITELIST_ADDR,
 };
 use airdropper::{
     msg::ExecuteMsg::{
@@ -21,12 +23,16 @@ use cosmwasm_std::{
     coin, entry_point, to_binary, Addr, BankMsg, Coin, CosmosMsg, Deps, DepsMut, Empty, Env,
     MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
+
+#[allow(unused_imports)]
+use std::collections::BTreeMap;
+
 use cw2::set_contract_version;
 use cw721_base::{
     msg::ExecuteMsg as Cw721ExecuteMsg, msg::InstantiateMsg as Cw721InstantiateMsg, MintMsg,
 };
 use cw_utils::{may_pay, maybe_addr, parse_reply_instantiate_data};
-use rand_core::SeedableRng;
+use rand_core::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro128StarStar;
 use sha2::{Digest, Sha256};
 use shuffle::{fy::FisherYates, shuffler::Shuffler};
@@ -64,9 +70,9 @@ const MAX_PER_ADDRESS_MINT: u32 = 50000;
 /// REPLY_IDs are returned if the submessage returns ok
 /// in this app we will ensure the reply_ids match the code_id
 /// stored on the server /shrug
-const INSTANTIATE_TOKEN_REPLY_ID: u64 = 2;
-const INSTANTIATE_AIRDROPPER_REPLY_ID: u64 = 3;
-const INSTANTIATE_WHITELIST_REPLY_ID: u64 = 4;
+const INSTANTIATE_TOKEN_REPLY_ID: u64 = 100;
+const INSTANTIATE_AIRDROPPER_REPLY_ID: u64 = 1;
+const INSTANTIATE_WHITELIST_REPLY_ID: u64 = 2;
 /// Acts as max/total basis points for initial mint revenue and as divisor.
 /// Total mint shares can have 2 decimal places for percentages
 const MAX_BPS: u32 = 10_000;
@@ -117,20 +123,19 @@ pub fn instantiate(
         return Err(ContractError::InvalidStartTime {});
     }
 
-    if !(1..=MAX_TOKEN_SUPPLY).contains(&msg.max_token_supply) {
-        return Err(ContractError::InvalidMaxTokenSupply {
-            max: MAX_TOKEN_SUPPLY,
-            input: msg.max_token_supply,
-        });
-    }
+    let validate_collection_info_res: ValidateCollectionInfoResponse =
+        validate_collection_info(deps.as_ref(), msg.collection_infos)?;
 
     // this may be simplified to just checking against `max_token_supply`
     if msg.base_fields.max_per_address_mint < 1
         || msg.base_fields.max_per_address_mint > MAX_PER_ADDRESS_MINT
-        || msg.base_fields.max_per_address_mint > msg.max_token_supply
+        || msg.base_fields.max_per_address_mint > validate_collection_info_res.total_token_supply
     {
         return Err(ContractError::InvalidMaxPerAddressMint {
-            max: cmp::min(MAX_PER_ADDRESS_MINT, msg.max_token_supply),
+            max: cmp::min(
+                MAX_PER_ADDRESS_MINT,
+                validate_collection_info_res.total_token_supply,
+            ),
             input: msg.base_fields.max_per_address_mint,
         });
     }
@@ -145,10 +150,9 @@ pub fn instantiate(
         return Err(ContractError::InvalidSubmoduleInstantiation {});
     }
 
-    validate_uri(msg.base_fields.base_token_uri.clone())?;
-
     // validate the initial mint revenue split as well as royalty split
-    let collection_info: CollectionInfo = validate_collection_info(deps.as_ref(), msg.extension)?;
+    let shared_collection_info: SharedCollectionInfo =
+        validate_shared_collection_info(deps.as_ref(), msg.extension)?;
 
     // validate the denom the user selected is one that is allowed.
     // cw20 banned
@@ -175,22 +179,26 @@ pub fn instantiate(
         maintainer_addr: maybe_addr(deps.api, msg.base_fields.maintainer_address)?,
         start_time: msg.base_fields.start_time,
         end_time: msg.base_fields.end_time,
-        max_token_supply: msg.max_token_supply,
+        total_token_supply: validate_collection_info_res.total_token_supply,
         max_per_address_mint: msg.base_fields.max_per_address_mint,
+        max_per_address_bundle_mint: msg.base_fields.max_per_address_bundle_mint,
         mint_price: msg.base_fields.mint_price,
+        bundle_mint_price: msg.base_fields.bundle_mint_price,
         mint_denom: msg.base_fields.mint_denom,
-        base_token_uri: msg.base_fields.base_token_uri,
-        name: msg.name.clone(),
-        symbol: msg.symbol.clone(),
-        token_code_id: msg.base_fields.token_code_id,
-        extension: collection_info,
+        token_code_id: msg.token_code_id,
+        extension: shared_collection_info,
         escrow_funds: msg.base_fields.escrow_funds,
+        bundle_enabled: msg.base_fields.bundle_enabled,
+        bundle_completed: false,
     };
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     CONFIG.save(deps.storage, &config)?;
-    CURRENT_TOKEN_SUPPLY.save(deps.storage, &msg.max_token_supply)?;
+    CURRENT_TOKEN_SUPPLY.save(
+        deps.storage,
+        &validate_collection_info_res.total_token_supply,
+    )?;
 
     let mut sub_msgs: Vec<SubMsg> = vec![];
 
@@ -216,37 +224,69 @@ pub fn instantiate(
 
     // borrowed from stargaze's minter.
     // shuffles the token ids for an element of randomness
-    let shuffled_token_ids = shuffle_token_ids(
+    let mut shuffled_token_ids: Vec<u32> = shuffle_token_ids(
         &env,
         info.sender.clone(),
-        (1..=msg.max_token_supply).collect::<Vec<u32>>(),
+        (1..=validate_collection_info_res.total_token_supply).collect::<Vec<u32>>(),
     )?;
 
+    /*
     let mut token_index = 1;
     for token_id in shuffled_token_ids {
-        SHUFFLED_TOKEN_IDS.save(deps.storage, token_index, &token_id)?;
-        TOKEN_ID_POSITIONS.save(deps.storage, token_id, &token_index)?;
+        SHUFFLED_BASE_TOKEN_IDS.save(deps.storage, token_index, &token_id)?;
+        BASE_TOKEN_ID_POSITIONS.save(deps.storage, token_id, &token_index)?;
         token_index += 1;
     }
+    */
 
-    // instantiate cw721 contract
-    let cw721_instantiate_info: ModuleInstantiateInfo = ModuleInstantiateInfo {
-        code_id: msg.base_fields.token_code_id,
-        msg: to_binary(&Cw721InstantiateMsg {
-            name: msg.name.clone(),
-            symbol: msg.symbol,
-            minter: env.contract.address.clone().into_string(),
-        })?,
-        admin: Admin::None {},
-        label: String::from("Instantiate fixed price NFT contract"),
-    };
+    let mut token_index = 1;
+    for coll_info in validate_collection_info_res.collection_infos {
+        let mut ids: Vec<u32> = vec![];
 
-    let cw721_instantiate_msg = cw721_instantiate_info.into_wasm_msg(env.contract.address);
+        for i in 1..=coll_info.token_supply {
+            let token_id = shuffled_token_ids.pop().unwrap();
+            let cw721_id: String = format!("{}:{}", coll_info.id, i);
 
-    let cw721_instantiate_msg: SubMsg<Empty> =
-        SubMsg::reply_on_success(cw721_instantiate_msg, INSTANTIATE_TOKEN_REPLY_ID);
+            // 1 based index ties to token_id
+            SHUFFLED_BASE_TOKEN_IDS.save(deps.storage, token_index, &token_id)?;
+            BASE_TOKEN_ID_POSITIONS.save(deps.storage, token_id, &token_index)?;
 
-    sub_msgs.push(cw721_instantiate_msg);
+            BASE_TOKEN_ID_CW721_ID.save(deps.storage, token_id, &cw721_id)?;
+            CW721_ID_BASE_TOKEN_ID.save(deps.storage, cw721_id, &token_id)?;
+
+            ids.push(token_id);
+
+            token_index += 1;
+        }
+
+        CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, coll_info.id, &ids)?;
+
+        // instantiate cw721 contract
+        let cw721_instantiate_info: ModuleInstantiateInfo = ModuleInstantiateInfo {
+            code_id: msg.token_code_id,
+            msg: to_binary(&Cw721InstantiateMsg {
+                name: coll_info.name.clone(),
+                symbol: coll_info.symbol.clone(),
+                minter: env.contract.address.clone().into_string(),
+            })?,
+            admin: Admin::None {},
+            label: String::from("Instantiate fixed price NFT contract"),
+        };
+
+        let cw721_instantiate_msg =
+            cw721_instantiate_info.into_wasm_msg(env.contract.address.clone());
+
+        let cw721_instantiate_msg: SubMsg<Empty> =
+            SubMsg::reply_on_success(cw721_instantiate_msg, coll_info.id);
+
+        sub_msgs.push(cw721_instantiate_msg);
+        CW721_COLLECTION_INFO.save(deps.storage, coll_info.id, &coll_info)?;
+        COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+            deps.storage,
+            coll_info.id,
+            &coll_info.token_supply,
+        )?;
+    }
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -266,8 +306,8 @@ pub fn execute(
     // mint
     match msg {
         ExecuteMsg::UpdateConfig(msg) => execute_update_config(deps, env, info, msg),
-        ExecuteMsg::InitSubmodule(module_info) => {
-            execute_init_submodule(deps, env, info, module_info)
+        ExecuteMsg::InitSubmodule(reply_id, module_info) => {
+            execute_init_submodule(deps, env, info, reply_id, module_info)
         }
         ExecuteMsg::UpdateWhitelistAddress(address) => {
             execute_update_whitelist_address(deps, env, info, address)
@@ -276,6 +316,7 @@ pub fn execute(
             execute_update_airdrop_address(deps, env, info, address)
         }
         ExecuteMsg::Mint {} => execute_mint(deps, env, info),
+        ExecuteMsg::MintBundle {} => execute_mint_bundle(deps, env, info),
         ExecuteMsg::AirdropMint { minter_address } => {
             execute_airdrop_mint(deps, env, info, minter_address)
         }
@@ -372,10 +413,10 @@ fn execute_update_config(
 
     if msg.max_per_address_mint != config.max_per_address_mint {
         // I'm failing to see how clippy is making this easier/more efficient
-        // if count < 1 || count > MAX_PER_ADDRESS_MINT || count > config.max_token_supply {
+        // if count < 1 || count > MAX_PER_ADDRESS_MINT || count > config.total_token_supply {
         if !(1..=MAX_PER_ADDRESS_MINT).contains(&msg.max_per_address_mint) {
             return Err(ContractError::InvalidMaxPerAddressMint {
-                max: cmp::min(MAX_PER_ADDRESS_MINT, config.max_token_supply),
+                max: cmp::min(MAX_PER_ADDRESS_MINT, config.total_token_supply),
                 input: msg.max_per_address_mint,
             });
         }
@@ -395,14 +436,18 @@ fn execute_update_config(
         config.mint_price = msg.mint_price;
     }
 
+    if msg.bundle_mint_price != config.bundle_mint_price {
+        config.bundle_mint_price = msg.bundle_mint_price;
+    }
+
     if msg.max_per_address_mint != config.max_per_address_mint {
         // this may be simplified to just checking against `max_token_supply`
         if msg.max_per_address_mint < 1
             || msg.max_per_address_mint > MAX_PER_ADDRESS_MINT
-            || msg.max_per_address_mint > config.max_token_supply
+            || msg.max_per_address_mint > config.total_token_supply
         {
             return Err(ContractError::InvalidMaxPerAddressMint {
-                max: cmp::min(MAX_PER_ADDRESS_MINT, config.max_token_supply),
+                max: cmp::min(MAX_PER_ADDRESS_MINT, config.total_token_supply),
                 input: msg.max_per_address_mint,
             });
         }
@@ -410,14 +455,8 @@ fn execute_update_config(
         config.max_per_address_mint = msg.max_per_address_mint;
     }
 
-    if msg.base_token_uri != config.base_token_uri {
-        validate_uri(msg.base_token_uri.clone())?;
-
-        config.base_token_uri = msg.base_token_uri;
-    }
-
-    if msg.token_code_id != config.token_code_id {
-        config.token_code_id = msg.token_code_id;
+    if msg.max_per_address_bundle_mint != config.max_per_address_bundle_mint {
+        config.max_per_address_bundle_mint = msg.max_per_address_bundle_mint;
     }
 
     if msg.escrow_funds != config.escrow_funds {
@@ -435,21 +474,19 @@ fn execute_init_submodule(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
+    reply_id: u64,
     module_info: ModuleInstantiateInfo,
 ) -> Result<Response, ContractError> {
     check_can_update(deps.as_ref(), &env, &info)?;
 
     // needs to be valid reply_id
-    if module_info.code_id != INSTANTIATE_AIRDROPPER_REPLY_ID
-        && module_info.code_id != INSTANTIATE_WHITELIST_REPLY_ID
-    {
-        println!("{:?}", module_info.code_id);
+    if reply_id != INSTANTIATE_AIRDROPPER_REPLY_ID && reply_id != INSTANTIATE_WHITELIST_REPLY_ID {
         Err(ContractError::InvalidSubmoduleCodeId {})
     } else {
         println!("env.contract.addressenv.contract.address {:?}", module_info);
-        let msg = module_info.clone().into_wasm_msg(env.contract.address);
+        let msg = module_info.into_wasm_msg(env.contract.address);
 
-        let msg: SubMsg<Empty> = SubMsg::reply_on_success(msg, module_info.code_id);
+        let msg: SubMsg<Empty> = SubMsg::reply_on_success(msg, reply_id);
 
         Ok(Response::new().add_submessage(msg))
     }
@@ -511,7 +548,7 @@ pub fn execute_mint(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Respon
     {
         return Err(ContractError::CampaignHasEnded {});
     }
-
+    println!("reached point {:?}", 1);
     let mut mint_price: Uint128 = config.mint_price;
     let mut _mint_type: MintType = MintType::None;
     let mut _can_mint: bool = false;
@@ -542,6 +579,7 @@ pub fn execute_mint(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Respon
     }
 
     if _can_mint {
+        println!("reached point {:?}", 2);
         let minter_addr: Addr = info.sender.clone();
         return _execute_mint(deps, env, info, _mint_type, mint_price, minter_addr);
     }
@@ -603,7 +641,7 @@ fn execute_airdrop_mint(
 /// method that finalizes the mint and generates the submessages
 fn _execute_mint(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     mint_type: MintType,
     mint_price: Uint128,
@@ -629,22 +667,26 @@ fn _execute_mint(
     }
 
     // TODO: add another element of randomness here?
-    let token_index = SHUFFLED_TOKEN_IDS
-        .keys(deps.storage, None, None, Order::Ascending)
-        .take(1)
-        .collect::<StdResult<Vec<_>>>()?[0];
-
-    let token_id = SHUFFLED_TOKEN_IDS.load(deps.storage, token_index)?;
-
+    let (token_index, base_token_id) =
+        quick_shuffle_token_ids_and_draw(deps.as_ref(), &env, info.sender, current_token_supply)?;
+    println!("reached point {:?} : {:?}", 5, base_token_id);
+    let cw721_id = BASE_TOKEN_ID_CW721_ID.load(deps.storage, base_token_id)?;
+    println!("reached point {:?} : {:?}", 6, cw721_id);
+    // 0 - collection (internal) id, 1 - (internal) token_id
+    let cw721vec = cw721_id.split(':').collect::<Vec<&str>>();
+    println!("reached point {:?}", 3);
     // Create mint msgs
-    let mint_msg = Cw721ExecuteMsg::Mint(MintMsg::<CollectionInfo> {
-        token_id: token_id.to_string(),
+    let coll_id: u64 = cw721vec[0].to_owned().parse::<u64>().unwrap();
+    let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, coll_id)?;
+
+    let mint_msg = Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+        token_id: base_token_id.to_string(),
         owner: minter_addr.clone().into_string(),
-        token_uri: Some(format!("{}/{}", config.base_token_uri, token_id)),
-        extension: config.extension.clone(),
+        token_uri: Some(format!("{}/{}", coll_info.base_token_uri, base_token_id)),
+        extension: config.extension,
     });
 
-    let token_address = CW721_ADDR.load(deps.storage)?;
+    let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
 
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: token_address.into_string(),
@@ -655,9 +697,22 @@ fn _execute_mint(
     let mut res = Response::new().add_message(msg);
 
     // remove token id from
-    SHUFFLED_TOKEN_IDS.remove(deps.storage, token_index);
-    TOKEN_ID_POSITIONS.remove(deps.storage, token_id);
+    SHUFFLED_BASE_TOKEN_IDS.remove(deps.storage, token_index);
+    BASE_TOKEN_ID_POSITIONS.remove(deps.storage, base_token_id);
+
+    let mut collection_token_ids: Vec<u32> =
+        CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, coll_id)?;
+    collection_token_ids.retain(|&x| x != base_token_id);
+    CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, coll_id, &collection_token_ids)?;
+
     CURRENT_TOKEN_SUPPLY.save(deps.storage, &(current_token_supply - 1))?;
+    let collection_current_token_supply =
+        COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, coll_id)?;
+    COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+        deps.storage,
+        coll_id,
+        &(collection_current_token_supply - 1),
+    )?;
 
     match mint_type {
         MintType::Public => {
@@ -695,6 +750,193 @@ fn _execute_mint(
             return Err(ContractError::UnableToMint {});
         }
     }
+
+    res = disburse_or_escrow_funds(deps, res, mint_price)?;
+
+    Ok(res)
+}
+
+fn execute_mint_bundle(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    // check token supply
+    let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+
+    if current_token_supply == 0 {
+        return Err(ContractError::MintCompleted {});
+    }
+
+    let config = CONFIG.load(deps.storage)?;
+
+    // ensure campaign has not ended
+    // TODO: move to optional?
+    if config
+        .end_time
+        .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
+        <= env.block.time
+    {
+        return Err(ContractError::CampaignHasEnded {});
+    }
+
+    let mint_price: Uint128 = config.bundle_mint_price;
+    let mut _mint_type: MintType = MintType::None;
+    let mut _can_mint: bool = false;
+
+    // if this user has public mints left then we allow them through
+    let check_public_mint_bundle = check_public_mint_bundle(deps.as_ref(), env.clone(), &info)?;
+    if check_public_mint_bundle {
+        _can_mint = check_public_mint_bundle;
+        _mint_type = MintType::Public;
+    }
+
+    if _can_mint {
+        return _execute_mint_bundle(deps, env, info, mint_price);
+    }
+
+    Err(ContractError::UnableToMint {})
+}
+
+/// method that finalizes the mint and generates the submessages
+fn _execute_mint_bundle(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    mint_price: Uint128,
+) -> Result<Response, ContractError> {
+    // check supply
+    let mut current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+
+    if current_token_supply == 0 {
+        return Err(ContractError::MintCompleted {});
+    }
+
+    let mut config = CONFIG.load(deps.storage)?;
+
+    let current_bundle_mint_count =
+        (BUNDLE_MINT_TRACKER.may_load(deps.storage, info.sender.clone())?).unwrap_or(0);
+
+    if current_bundle_mint_count >= config.max_per_address_bundle_mint {
+        return Err(ContractError::BundleMaxMintReached(
+            config.max_per_address_bundle_mint,
+        ));
+    }
+
+    // check payment
+    let payment = may_pay(&info, &config.mint_denom)?;
+
+    if payment != mint_price {
+        return Err(ContractError::IncorrectPaymentAmount {
+            token: config.mint_denom,
+            amt: mint_price,
+        });
+    }
+
+    let collections: Vec<AddressValMsg> = CW721_ADDRS
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|item| {
+            let (coll_id, addr) = item?;
+            Ok(AddressValMsg {
+                address: addr.into_string(),
+                value: coll_id as u32,
+            })
+        })
+        .collect::<StdResult<Vec<AddressValMsg>>>()
+        .unwrap();
+
+    let mut res: Response = Response::new();
+
+    for collection in collections {
+        println!("collection.value {:?}", collection.value);
+
+        let mut collection_current_token_supply =
+            COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection.value as u64)?;
+
+        let mut collection_token_ids: Vec<u32> =
+            CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection.value as u64)?;
+        /*
+                let shuffle_token_ids: Vec<u32> =
+                    shuffle_token_ids(&env, info.sender.clone(), collection_token_ids.clone())?;
+
+                let token_id = shuffle_token_ids[0];
+        */
+
+        let token_id: u32 = quick_shuffle_token_ids_and_draw_token_id(
+            &env,
+            info.sender.clone(),
+            collection_token_ids.clone(),
+        )?;
+        println!(
+            "$$$$ collection_token_ids.clone() {:?}",
+            collection_token_ids.clone()
+        );
+        println!("$$$$ token_id {:?}", token_id);
+        let coll_info: CollectionInfo =
+            CW721_COLLECTION_INFO.load(deps.storage, collection.value as u64)?;
+
+        let token_index = BASE_TOKEN_ID_POSITIONS.load(deps.storage, token_id)?;
+
+        let mint_msg = Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+            token_id: token_id.to_string(),
+            owner: info.sender.clone().into_string(),
+            token_uri: Some(format!("{}/{}", coll_info.base_token_uri, token_id)),
+            extension: config.extension.clone(),
+        });
+
+        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: collection.address,
+            msg: to_binary(&mint_msg)?,
+            funds: vec![],
+        });
+
+        res = res.add_message(msg);
+
+        // remove token id from
+        SHUFFLED_BASE_TOKEN_IDS.remove(deps.storage, token_index);
+        BASE_TOKEN_ID_POSITIONS.remove(deps.storage, token_id);
+        println!("$$$$ 2 {:?}", token_id);
+        collection_token_ids.retain(|&x| x != token_id);
+        CW721_SHUFFLED_TOKEN_IDS.save(
+            deps.storage,
+            collection.value as u64,
+            &collection_token_ids,
+        )?;
+
+        collection_current_token_supply -= 1;
+
+        COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+            deps.storage,
+            collection.value as u64,
+            &(collection_current_token_supply),
+        )?;
+
+        if collection_current_token_supply == 0 {
+            config.bundle_completed = true;
+            CONFIG.save(deps.storage, &config)?;
+        }
+
+        current_token_supply -= 1;
+    }
+
+    CURRENT_TOKEN_SUPPLY.save(deps.storage, &current_token_supply)?;
+
+    let current_bundle_mint_count =
+        (BUNDLE_MINT_TRACKER.may_load(deps.storage, info.sender.clone())?).unwrap_or(0);
+
+    BUNDLE_MINT_TRACKER.save(deps.storage, info.sender, &(current_bundle_mint_count + 1))?;
+
+    res = disburse_or_escrow_funds(deps, res, mint_price)?;
+
+    Ok(res)
+}
+
+fn disburse_or_escrow_funds(
+    deps: DepsMut,
+    mut res: Response,
+    mint_price: Uint128,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
 
     // TODO: add other disbursement methods eg contract escrow so we dont blow up
     // an address' tx history
@@ -813,50 +1055,71 @@ fn _execute_claim_by_token_id(
     }
 
     let config = CONFIG.load(deps.storage)?;
-    let token_address = CW721_ADDR.load(deps.storage)?;
-    let promised_token_id = token_ids[0];
     let mut res: Response = Response::new();
-    // this is an error and we'll need to go remove it
-    if promised_token_id > config.max_token_supply {
-    } else {
-        let token_index: u32 =
-            (TOKEN_ID_POSITIONS.may_load(deps.storage, promised_token_id)?).unwrap_or(0);
 
-        // if maintainer already cleared out the queue, then this wont be necessary
-        if token_index > 0 {
-            let token_id = (SHUFFLED_TOKEN_IDS.may_load(deps.storage, token_index)?).unwrap_or(0);
-            SHUFFLED_TOKEN_IDS.remove(deps.storage, token_index);
-            TOKEN_ID_POSITIONS.remove(deps.storage, token_id);
+    for promised_token_id in token_ids {
+        // this is an error and we'll need to go remove it
+        if promised_token_id > config.total_token_supply {
+        } else {
+            let token_index: u32 =
+                (BASE_TOKEN_ID_POSITIONS.may_load(deps.storage, promised_token_id)?).unwrap_or(0);
+
+            let cw721_id = BASE_TOKEN_ID_CW721_ID.load(deps.storage, promised_token_id)?;
+            // 0 - collection (internal) id, 1 - (internal) token_id
+            let cw721vec = cw721_id.split(':').collect::<Vec<&str>>();
+            let coll_id: u64 = cw721vec[0].to_owned().parse::<u64>().unwrap();
+            let token_id: u32 = cw721vec[1].to_owned().parse::<u32>().unwrap();
+
+            // if maintainer already cleared out the queue, then this wont be necessary
+            if token_index > 0 {
+                SHUFFLED_BASE_TOKEN_IDS.remove(deps.storage, token_index);
+                BASE_TOKEN_ID_POSITIONS.remove(deps.storage, promised_token_id);
+
+                let mut ids: Vec<u32> = CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, coll_id)?;
+                ids.retain(|&x| x != promised_token_id);
+                CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, coll_id, &ids)?;
+            }
+
+            let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, coll_id)?;
+            let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
+
+            // Create mint msgs
+            let mint_msg = Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+                token_id: token_id.to_string(),
+                owner: minter_addr.to_string(),
+                token_uri: Some(format!("{}/{}", coll_info.base_token_uri, token_id)),
+                extension: config.extension.clone(),
+            });
+            let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: token_address.to_string(),
+                msg: to_binary(&mint_msg)?,
+                funds: vec![],
+            });
+
+            res = res.add_message(msg);
 
             let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
             CURRENT_TOKEN_SUPPLY.save(deps.storage, &(current_token_supply - 1))?;
+
+            let collection_current_token_supply =
+                COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, coll_id)?;
+            COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+                deps.storage,
+                coll_id,
+                &(collection_current_token_supply - 1),
+            )?;
         }
 
-        // Create mint msgs
-        let mint_msg = Cw721ExecuteMsg::Mint(MintMsg::<CollectionInfo> {
-            token_id: promised_token_id.to_string(),
-            owner: minter_addr.to_string(),
-            token_uri: Some(format!("{}/{}", config.base_token_uri, promised_token_id)),
-            extension: config.extension,
-        });
+        let airdropper_addr = AIRDROPPER_ADDR.load(deps.storage)?;
+        let update_msg = AD_MarkTokenIDClaimed(minter_addr.to_string(), promised_token_id);
         let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: token_address.to_string(),
-            msg: to_binary(&mint_msg)?,
+            contract_addr: airdropper_addr.into_string(),
+            msg: to_binary(&update_msg)?,
             funds: vec![],
         });
 
         res = res.add_message(msg);
     }
-
-    let airdropper_addr = AIRDROPPER_ADDR.load(deps.storage)?;
-    let update_msg = AD_MarkTokenIDClaimed(minter_addr.to_string(), promised_token_id);
-    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: airdropper_addr.into_string(),
-        msg: to_binary(&update_msg)?,
-        funds: vec![],
-    });
-
-    res = res.add_message(msg);
 
     Ok(res)
 }
@@ -878,10 +1141,20 @@ fn execute_clean_claimed_tokens_from_shuffle(
         )?;
 
         for token_id in assigned_token_ids {
-            let position = (TOKEN_ID_POSITIONS.may_load(deps.storage, token_id)?).unwrap_or(0);
-            if position > 0 {
-                SHUFFLED_TOKEN_IDS.remove(deps.storage, position);
-                TOKEN_ID_POSITIONS.remove(deps.storage, token_id);
+            let token_index =
+                (BASE_TOKEN_ID_POSITIONS.may_load(deps.storage, token_id)?).unwrap_or(0);
+            if token_index > 0 {
+                SHUFFLED_BASE_TOKEN_IDS.remove(deps.storage, token_index);
+                BASE_TOKEN_ID_POSITIONS.remove(deps.storage, token_id);
+
+                let cw721_id = BASE_TOKEN_ID_CW721_ID.load(deps.storage, token_id)?;
+                // 0 - collection (internal) id, 1 - (internal) token_id
+                let cw721vec = cw721_id.split(':').collect::<Vec<&str>>();
+                let coll_id: u64 = cw721vec[0].to_owned().parse::<u64>().unwrap();
+
+                let mut ids: Vec<u32> = CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, coll_id)?;
+                ids.retain(|&x| x != token_id);
+                CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, coll_id, &ids)?;
             }
         }
 
@@ -910,11 +1183,11 @@ fn execute_shuffle_token_order(
         return Err(ContractError::Unauthorized {});
     }
 
-    let token_ids: Vec<u32> = TOKEN_ID_POSITIONS
+    let token_ids: Vec<u32> = BASE_TOKEN_ID_POSITIONS
         .keys(deps.storage, None, None, Order::Ascending)
         .collect::<StdResult<Vec<u32>>>()?;
 
-    let positions: Vec<u32> = SHUFFLED_TOKEN_IDS
+    let positions: Vec<u32> = SHUFFLED_BASE_TOKEN_IDS
         .keys(deps.storage, None, None, Order::Descending)
         .take(1)
         .collect::<StdResult<Vec<u32>>>()?;
@@ -923,15 +1196,15 @@ fn execute_shuffle_token_order(
 
     let mut token_index = 1;
     for token_id in shuffled_token_ids {
-        SHUFFLED_TOKEN_IDS.save(deps.storage, token_index, &token_id)?;
-        TOKEN_ID_POSITIONS.save(deps.storage, token_id, &token_index)?;
+        SHUFFLED_BASE_TOKEN_IDS.save(deps.storage, token_index, &token_id)?;
+        BASE_TOKEN_ID_POSITIONS.save(deps.storage, token_id, &token_index)?;
         token_index += 1;
     }
 
     // trim the edges off from the shuffled tokenids list
     if usize::try_from(positions[0]).unwrap() > token_ids.len() {
-        for i in token_index..=config.max_token_supply {
-            SHUFFLED_TOKEN_IDS.remove(deps.storage, i);
+        for i in token_index..=config.total_token_supply {
+            SHUFFLED_BASE_TOKEN_IDS.remove(deps.storage, i);
         }
     }
 
@@ -1033,19 +1306,61 @@ fn execute_disburse_funds(
 
 // #region helper functions
 
+struct ValidateCollectionInfoResponse {
+    pub collection_infos: Vec<CollectionInfo>,
+    pub total_token_supply: u32,
+}
+
 fn validate_collection_info(
+    _deps: Deps,
+    msgs: Vec<CollectionInfoMsg>,
+) -> Result<ValidateCollectionInfoResponse, ContractError> {
+    let mut collection_infos: Vec<CollectionInfo> = vec![];
+
+    let mut total_token_supply: u32 = 0;
+    let mut id: u64 = INSTANTIATE_TOKEN_REPLY_ID;
+    for msg in msgs {
+        id += 1;
+        validate_uri(msg.base_token_uri.clone())?;
+
+        let secondary_metadata_uri: Option<String> = match msg.secondary_metadata_uri {
+            Some(uri) => {
+                validate_uri(uri.clone())?;
+                Some(uri)
+            }
+            None => None,
+        };
+
+        total_token_supply += msg.token_supply;
+
+        collection_infos.push(CollectionInfo {
+            id,
+            token_supply: msg.token_supply,
+            name: msg.name,
+            symbol: msg.symbol,
+            base_token_uri: msg.base_token_uri,
+            secondary_metadata_uri,
+        })
+    }
+
+    if !(1..=MAX_TOKEN_SUPPLY).contains(&total_token_supply) {
+        return Err(ContractError::InvalidMaxTokenSupply {
+            max: MAX_TOKEN_SUPPLY,
+            input: total_token_supply,
+        });
+    }
+
+    Ok(ValidateCollectionInfoResponse {
+        collection_infos,
+        total_token_supply,
+    })
+}
+
+fn validate_shared_collection_info(
     deps: Deps,
-    msg: CollectionInfoMsg,
-) -> Result<CollectionInfo, ContractError> {
-    let secondary_metadata_uri: Option<String> = match msg.secondary_metadata_uri {
-        Some(uri) => {
-            validate_uri(uri.clone())?;
-            Some(uri)
-        }
-        None => None,
-    };
-    let collection_info: CollectionInfo = CollectionInfo {
-        secondary_metadata_uri,
+    msg: SharedCollectionInfoMsg,
+) -> Result<SharedCollectionInfo, ContractError> {
+    let shared_collection_info: SharedCollectionInfo = SharedCollectionInfo {
         mint_revenue_share: validate_royalties(deps, msg.mint_revenue_share, true)?,
         secondary_market_royalties: validate_royalties(
             deps,
@@ -1054,7 +1369,7 @@ fn validate_collection_info(
         )?,
     };
 
-    Ok(collection_info)
+    Ok(shared_collection_info)
 }
 
 fn validate_uri(uri: String) -> Result<String, ContractError> {
@@ -1157,6 +1472,88 @@ fn shuffle_token_ids(
         .map_err(StdError::generic_err)?;
 
     Ok(tokens)
+}
+
+// copied from stargaze
+fn quick_shuffle_token_ids_and_draw(
+    deps: Deps,
+    env: &Env,
+    sender: Addr,
+    token_supply: u32,
+) -> Result<(u32, u32), ContractError> {
+    let sha256 = Sha256::digest(
+        format!("{}{}{}", sender, env.block.height + 69, token_supply + 69).into_bytes(),
+    );
+    // Cut first 16 bytes from 32 byte value
+    let randomness: [u8; 16] = sha256.to_vec()[0..16].try_into().unwrap();
+    let mut rng = Xoshiro128StarStar::from_seed(randomness);
+
+    let r = rng.next_u32();
+
+    let order = match r % 2 {
+        1 => Order::Descending,
+        _ => Order::Ascending,
+    };
+    let mut rem = 50;
+    if rem > token_supply {
+        rem = token_supply;
+    }
+    let n = r % rem;
+    let index_id_pair: (u32, u32) = SHUFFLED_BASE_TOKEN_IDS
+        .range(deps.storage, None, None, order)
+        .skip(n as usize)
+        .take(1)
+        .collect::<StdResult<Vec<_>>>()?[0];
+
+    Ok(index_id_pair)
+}
+
+fn quick_shuffle_token_ids_and_draw_token_id(
+    env: &Env,
+    sender: Addr,
+    tokens: Vec<u32>,
+) -> Result<u32, ContractError> {
+    println!("$$$$ tokens.len {:?}", tokens.len());
+    let token_supply: u32 = tokens.len() as u32;
+    let sha256 = Sha256::digest(
+        format!("{}{}{}", sender, env.block.height + 69, token_supply + 69).into_bytes(),
+    );
+    // Cut first 16 bytes from 32 byte value
+    let randomness: [u8; 16] = sha256.to_vec()[0..16].try_into().unwrap();
+    let mut rng = Xoshiro128StarStar::from_seed(randomness);
+
+    let r = rng.next_u32();
+
+    let mut rem = 50;
+    if rem > token_supply {
+        rem = token_supply;
+    }
+    let n = r % rem;
+
+    println!("$$$$ n {:?}", n);
+    println!("$$$$ r {:?}", r);
+    println!("$$$$ rem {:?}", rem);
+
+    let mut token_pairs = BTreeMap::new();
+
+    for token_id in tokens {
+        token_pairs.insert(token_id, token_id);
+    }
+
+    println!("$$$$ tokens {:?}", token_pairs.clone());
+    println!("$$$$ tokens iter {:?}", token_pairs.clone().into_iter());
+
+    let index_id_pair = token_pairs
+        .into_iter()
+        .skip(n as usize)
+        .take(1)
+        .map(|item| {
+            let (id, _) = item;
+            Ok(id)
+        })
+        .collect::<StdResult<Vec<_>>>()?[0];
+
+    Ok(index_id_pair)
 }
 
 // #endregion
@@ -1353,9 +1750,73 @@ fn check_public_mint(deps: Deps, env: Env, info: &MessageInfo) -> Result<bool, C
     let current_mint_count =
         (ADDRESS_MINT_TRACKER.may_load(deps.storage, info.sender.clone())?).unwrap_or(0);
 
-    if cmp::max(config.max_per_address_mint - current_mint_count, 0) == 0 {
+    if current_mint_count >= config.max_per_address_mint {
         return Err(ContractError::PublicMaxMintReached(
             config.max_per_address_mint,
+        ));
+    }
+
+    Ok(can_mint)
+}
+
+fn check_public_mint_bundle(
+    deps: Deps,
+    env: Env,
+    info: &MessageInfo,
+) -> Result<bool, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    let mut can_mint: bool = false;
+
+    if !config.bundle_enabled {
+        return Err(ContractError::BundleMintDisabled {});
+    }
+
+    if config.bundle_completed {
+        return Err(ContractError::BundleMintCompleted {});
+    } else {
+        let collection_supplies: Vec<u32> = COLLECTION_CURRENT_TOKEN_SUPPLY
+            .range(deps.storage, None, None, Order::Ascending)
+            .map(|item| {
+                let (_, supply) = item?;
+                Ok(supply)
+            })
+            .collect::<StdResult<Vec<u32>>>()
+            .unwrap();
+
+        for supply in collection_supplies {
+            if supply == 0 {
+                return Err(ContractError::BundleMintCompleted {});
+            }
+        }
+    }
+
+    if env.block.time < config.start_time {
+        return Err(ContractError::BeforeStartTime {});
+    }
+
+    if config
+        .end_time
+        .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
+        <= env.block.time
+    {
+        return Err(ContractError::CampaignHasEnded {});
+    }
+
+    if config.start_time <= env.block.time
+        && env.block.time
+            < config
+                .end_time
+                .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
+    {
+        can_mint = true;
+    }
+
+    let current_mint_bundle_count =
+        (BUNDLE_MINT_TRACKER.may_load(deps.storage, info.sender.clone())?).unwrap_or(0);
+
+    if current_mint_bundle_count >= config.max_per_address_bundle_mint {
+        return Err(ContractError::BundleMaxMintReached(
+            config.max_per_address_bundle_mint,
         ));
     }
 
@@ -1377,19 +1838,23 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
         Ok(res) => {
             let addr = deps.api.addr_validate(&res.contract_address)?;
             match msg.id {
-                INSTANTIATE_TOKEN_REPLY_ID => {
-                    CW721_ADDR.save(deps.storage, &addr)?;
-                }
                 INSTANTIATE_AIRDROPPER_REPLY_ID => {
-                    println!("{:?}", INSTANTIATE_AIRDROPPER_REPLY_ID);
-                    println!("{:?}", res.contract_address);
                     AIRDROPPER_ADDR.save(deps.storage, &addr)?;
                 }
                 INSTANTIATE_WHITELIST_REPLY_ID => {
                     WHITELIST_ADDR.save(deps.storage, &addr)?;
                 }
                 _ => {
-                    return Err(ContractError::InvalidTokenReplyId {});
+                    let cw721_info = CW721_COLLECTION_INFO.may_load(deps.storage, msg.id)?;
+
+                    match cw721_info {
+                        Some(info) => {
+                            CW721_ADDRS.save(deps.storage, info.id, &addr)?;
+                        }
+                        None => {
+                            return Err(ContractError::InvalidTokenReplyId {});
+                        }
+                    }
                 }
             }
             Ok(Response::default())
