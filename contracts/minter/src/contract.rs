@@ -4,11 +4,26 @@ use crate::msg::{
     InstantiateMsg, MintType, ModuleInstantiateInfo, RoyaltyInfoMsg, SharedCollectionInfoMsg,
 };
 use crate::state::{
-    CollectionInfo, Config, RoyaltyInfo, SharedCollectionInfo, ADDRESS_MINT_TRACKER,
-    AIRDROPPER_ADDR, BANK_BALANCES, BASE_TOKEN_ID_CW721_ID, BASE_TOKEN_ID_POSITIONS,
-    BUNDLE_MINT_TRACKER, COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG, CURRENT_TOKEN_SUPPLY,
-    CW721_ADDRS, CW721_COLLECTION_INFO, CW721_ID_BASE_TOKEN_ID, CW721_SHUFFLED_TOKEN_IDS,
-    SHUFFLED_BASE_TOKEN_IDS, TOTAL_TOKEN_SUPPLY, WHITELIST_ADDR,
+    CollectionInfo,
+    Config,
+    RoyaltyInfo,
+    SharedCollectionInfo,
+    ADDRESS_MINT_TRACKER,
+    AIRDROPPER_ADDR,
+    BANK_BALANCES,
+    BASE_TOKEN_ID_CW721_ID,
+    BASE_TOKEN_ID_POSITIONS,
+    BUNDLE_MINT_TRACKER,
+    COLLECTION_CURRENT_TOKEN_SUPPLY,
+    CONFIG,
+    CURRENT_TOKEN_SUPPLY,
+    CW721_ADDRS,
+    CW721_COLLECTION_INFO,
+    CW721_SHUFFLED_TOKEN_IDS,
+    SHUFFLED_BASE_TOKEN_IDS,
+    TOTAL_TOKEN_SUPPLY,
+    WHITELIST_ADDR,
+    //CW721_ID_BASE_TOKEN_ID
 };
 use airdropper::{
     msg::ExecuteMsg::{
@@ -351,7 +366,7 @@ fn execute_first_time_shuffle(
     for coll_info in collection_infos {
         for i in 1..=coll_info.token_supply {
             let token_id = shuffled_token_ids.pop().unwrap();
-            let cw721_id: String = format!("{}:{}", coll_info.id, i);
+            let _cw721_id: String = format!("{}:{}", coll_info.id, i);
 
             // 1 based index ties to token_id
             SHUFFLED_BASE_TOKEN_IDS.save(deps.storage, token_index, &token_id)?;
