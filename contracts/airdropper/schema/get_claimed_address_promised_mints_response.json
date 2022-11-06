@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GetClaimedAddressPromisedMintsResponse",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/AddressValMsg"
+  },
+  "definitions": {
+    "AddressValMsg": {
+      "description": "Used as execution msg and query response for single Address-Value pairs eg address is promised token_id 8 or address is promised 3 mints or token_id 6 was minted by address: \"juno1addr\"",
+      "type": "object",
+      "required": [
+        "address",
+        "value"
+      ],
+      "properties": {
+        "address": {
+          "description": "address for the promised values",
+          "type": "string"
+        },
+        "value": {
+          "description": "promised token_id OR promised mint count",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      }
+    }
+  }
+}

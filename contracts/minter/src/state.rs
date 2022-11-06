@@ -48,6 +48,7 @@ pub struct RoyaltyInfo {
 
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const CURRENT_TOKEN_SUPPLY: Item<u32> = Item::new("current_token_supply");
+pub const TOTAL_TOKEN_SUPPLY: Item<u32> = Item::new("total_token_supply");
 pub const ADDRESS_MINT_TRACKER: Map<Addr, u32> = Map::new("address_mint_tracker");
 pub const BUNDLE_MINT_TRACKER: Map<Addr, u32> = Map::new("bundle_mint_tracker");
 // (idx, token_id)

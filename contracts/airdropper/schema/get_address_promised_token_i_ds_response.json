@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GetAddressPromisedTokenIDsResponse",
+  "description": "Response object used to return a list of `token_id`s promised/claimed by an address",
+  "type": "object",
+  "required": [
+    "address",
+    "token_ids"
+  ],
+  "properties": {
+    "address": {
+      "description": "address for the promised values",
+      "type": "string"
+    },
+    "token_ids": {
+      "description": "list of token_ids promised to an address",
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "format": "uint32",
+        "minimum": 0.0
+      }
+    }
+  }
+}

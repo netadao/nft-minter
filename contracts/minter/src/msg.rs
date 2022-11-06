@@ -154,6 +154,8 @@ pub struct ModuleInstantiateInfo {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    /// shmeh
+    FirstTimeShuffle {},
     /// Uses `BaseInitMsg` to update the the config
     UpdateConfig(BaseInitMsg),
     /// (Re)Initializes submodules if a user desires.  This will replace the
@@ -219,6 +221,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
+    /*
     /// TODO: REMOVE, TESTING ONLY
     GetShuffledTokenIds {
         /// token_id
@@ -250,6 +253,7 @@ pub enum QueryMsg {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
+    */
     GetCw721CollectionInfo {
         /// token_id
         start_after: Option<u64>,

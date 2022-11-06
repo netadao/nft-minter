@@ -1,15 +1,97 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "QueryMsg",
-  "anyOf": [
+  "oneOf": [
     {
+      "description": "Gets `state::Config` a",
       "type": "object",
       "required": [
-        "get_count"
+        "get_config"
       ],
       "properties": {
-        "get_count": {
+        "get_config": {
           "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Check's an address' whitelist eligibility as well as open window information on the WL mint. Returns closed, inprogress, address is on whitelist, current WL mint count for address, max mints per address and the mint price of the WL.  Returns a `CheckWhitelistResponse` obj",
+      "type": "object",
+      "required": [
+        "check_whitelist"
+      ],
+      "properties": {
+        "check_whitelist": {
+          "type": "object",
+          "required": [
+            "minter_address"
+          ],
+          "properties": {
+            "minter_address": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Lists all addresses and the number of mints they have in `WHITELIST` default sort is ASCENDING by address. returns Vec<String>",
+      "type": "object",
+      "required": [
+        "get_whitelist_addresses"
+      ],
+      "properties": {
+        "get_whitelist_addresses": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "address",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Lists all address and their count of mints that are in `ADDRESS_MINT_TRACKER`. default sort is ASCENDING by address. Returns Vec<AddressValMsg>",
+      "type": "object",
+      "required": [
+        "get_address_mints"
+      ],
+      "properties": {
+        "get_address_mints": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "address",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
         }
       },
       "additionalProperties": false

@@ -1,39 +1,217 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ExecuteMsg",
-  "anyOf": [
+  "oneOf": [
     {
+      "description": "Leverages InstantiateMsg to pass updates to the config for the contract",
       "type": "object",
       "required": [
-        "increment"
+        "update_config"
       ],
       "properties": {
-        "increment": {
-          "type": "object"
+        "update_config": {
+          "$ref": "#/definitions/InstantiateMsg"
         }
       },
       "additionalProperties": false
     },
     {
+      "description": "Update's the maintainer's address for the contract.  This address also has the ability to manage the contract alongside the admin. This is a separate function so the minter contract can easily pass an update if the maintainer needs to be updated",
       "type": "object",
       "required": [
-        "reset"
+        "update_maintainer_address"
       ],
       "properties": {
-        "reset": {
-          "type": "object",
-          "required": [
-            "count"
-          ],
-          "properties": {
-            "count": {
-              "type": "integer",
-              "format": "int32"
-            }
+        "update_maintainer_address": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Value used here is a `token_id`. This function will validate the token_id and add it to an address' list of promised `token_id`s",
+      "type": "object",
+      "required": [
+        "add_promised_token_i_ds"
+      ],
+      "properties": {
+        "add_promised_token_i_ds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AddressValMsg"
           }
         }
       },
       "additionalProperties": false
+    },
+    {
+      "description": "For every `token_id` passed in, grab the address it was promised to, then remove it from that address' promised tokens. Also remove it from the assigned list that tracks which address it was promised to",
+      "type": "object",
+      "required": [
+        "remove_promised_token_i_ds"
+      ],
+      "properties": {
+        "remove_promised_token_i_ds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Given an a list of addresses, we'll iterate through and unassign each token_id from the assigned tokens tracker and then remove the address",
+      "type": "object",
+      "required": [
+        "remove_promised_tokens_by_address"
+      ],
+      "properties": {
+        "remove_promised_tokens_by_address": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Value used here is a count/number of promised mints to an address Also performs updates if the count needs to change",
+      "type": "object",
+      "required": [
+        "add_promised_mints"
+      ],
+      "properties": {
+        "add_promised_mints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AddressValMsg"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Removes addresses from the list of addresses with promised mints",
+      "type": "object",
+      "required": [
+        "remove_promised_mints"
+      ],
+      "properties": {
+        "remove_promised_mints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Marks a token_id as claimed by an address",
+      "type": "object",
+      "required": [
+        "mark_token_i_d_claimed"
+      ],
+      "properties": {
+        "mark_token_i_d_claimed": {
+          "type": "array",
+          "items": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Increments an address' claimed promised mint count",
+      "type": "object",
+      "required": [
+        "increment_address_claimed_promised_mint_count"
+      ],
+      "properties": {
+        "increment_address_claimed_promised_mint_count": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     }
-  ]
+  ],
+  "definitions": {
+    "AddressValMsg": {
+      "description": "Used as execution msg and query response for single Address-Value pairs eg address is promised token_id 8 or address is promised 3 mints or token_id 6 was minted by address: \"juno1addr\"",
+      "type": "object",
+      "required": [
+        "address",
+        "value"
+      ],
+      "properties": {
+        "address": {
+          "description": "address for the promised values",
+          "type": "string"
+        },
+        "value": {
+          "description": "promised token_id OR promised mint count",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      }
+    },
+    "InstantiateMsg": {
+      "description": "General Instantiation message. also used to pass updates for the config",
+      "type": "object",
+      "required": [
+        "start_time"
+      ],
+      "properties": {
+        "end_time": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maintainer_address": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start_time": {
+          "$ref": "#/definitions/Timestamp"
+        }
+      }
+    },
+    "Timestamp": {
+      "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Uint64"
+        }
+      ]
+    },
+    "Uint64": {
+      "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+      "type": "string"
+    }
+  }
 }

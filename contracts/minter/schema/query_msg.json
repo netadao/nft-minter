@@ -1,14 +1,213 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "QueryMsg",
-  "anyOf": [
+  "oneOf": [
+    {
+      "description": "Gets Config + some other fields and returns `ConfigResponse`",
+      "type": "object",
+      "required": [
+        "get_config"
+      ],
+      "properties": {
+        "get_config": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Checks an address' mint count and returns `AddressValMsg`",
+      "type": "object",
+      "required": [
+        "check_address_mints"
+      ],
+      "properties": {
+        "check_address_mints": {
+          "type": "object",
+          "required": [
+            "minter_address"
+          ],
+          "properties": {
+            "minter_address": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets a list of all the addresses who have had a public mint in `ADDRESS_MINT_TRACKER`. Default sort is in ASCENDING based on addressreturns Vec<AddressValMsg>",
+      "type": "object",
+      "required": [
+        "get_address_mints"
+      ],
+      "properties": {
+        "get_address_mints": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "address",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "gets a list of all the balances in escrow returns Vec<AddrBal>",
+      "type": "object",
+      "required": [
+        "get_escrow_balances"
+      ],
+      "properties": {
+        "get_escrow_balances": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "address",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     {
       "type": "object",
       "required": [
-        "get_count"
+        "get_cw721_collection_info"
       ],
       "properties": {
-        "get_count": {
+        "get_cw721_collection_info": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "token_id",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_bundle_mint_tracker"
+      ],
+      "properties": {
+        "get_bundle_mint_tracker": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "token_id",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_collection_current_token_supply"
+      ],
+      "properties": {
+        "get_collection_current_token_supply": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "token_id",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets count of remaining tokens available in `CURRENT_TOKEN_SUPPLY`",
+      "type": "object",
+      "required": [
+        "get_remaining_tokens"
+      ],
+      "properties": {
+        "get_remaining_tokens": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets all the cw721 addresses attached to this contract",
+      "type": "object",
+      "required": [
+        "get_c_w721_addrs"
+      ],
+      "properties": {
+        "get_c_w721_addrs": {
           "type": "object"
         }
       },

@@ -1,10 +1,15 @@
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
-use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
+use cosmwasm_schema::{export_schema, export_schema_with_title, remove_schemas, schema_for};
 
 use airdropper::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use airdropper::state::Config;
+
+use airdropper::msg::{
+    AddressPromisedTokensResponse, AddressValMsg, CheckAirdropPromisedMintResponse,
+    CheckAirdropPromisedTokensResponse,
+};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -16,4 +21,51 @@ fn main() {
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(Config), &out_dir);
+
+    export_schema_with_title(&schema_for!(Config), &out_dir, "GetConfigResponse");
+    export_schema_with_title(
+        &schema_for!(AddressPromisedTokensResponse),
+        &out_dir,
+        "GetAddressPromisedTokenIDsResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(Vec<u32>),
+        &out_dir,
+        "GetAssignedTokenIDsResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(Vec<AddressValMsg>),
+        &out_dir,
+        "GetAssignedTokenIDsWithAddressResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(Vec<u32>),
+        &out_dir,
+        "GetClaimedTokenIDsResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(Vec<AddressValMsg>),
+        &out_dir,
+        "GetClaimedTokenIDsWithAddressResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(Vec<AddressValMsg>),
+        &out_dir,
+        "GetAddressPromisedMintsResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(Vec<AddressValMsg>),
+        &out_dir,
+        "GetClaimedAddressPromisedMintsResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(CheckAirdropPromisedMintResponse),
+        &out_dir,
+        "CheckAddressPromisedMintsResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(CheckAirdropPromisedTokensResponse),
+        &out_dir,
+        "CheckAddressPromisedTokensResponse",
+    );
 }
