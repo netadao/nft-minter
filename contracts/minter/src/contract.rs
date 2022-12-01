@@ -23,7 +23,7 @@ use crate::state::{
     SHUFFLED_BASE_TOKEN_IDS,
     TOTAL_TOKEN_SUPPLY,
     WHITELIST_ADDR,
-    //CW721_ID_BASE_TOKEN_ID
+    CW721_ID_BASE_TOKEN_ID
 };
 use airdropper::{
     msg::ExecuteMsg::{
@@ -366,14 +366,14 @@ fn execute_first_time_shuffle(
     for coll_info in collection_infos {
         for i in 1..=coll_info.token_supply {
             let token_id = shuffled_token_ids.pop().unwrap();
-            let _cw721_id: String = format!("{}:{}", coll_info.id, i);
+            let cw721_id: String = format!("{}:{}", coll_info.id, i);
 
             // 1 based index ties to token_id
             SHUFFLED_BASE_TOKEN_IDS.save(deps.storage, token_index, &token_id)?;
-            //BASE_TOKEN_ID_POSITIONS.save(deps.storage, token_id, &token_index)?;
+            BASE_TOKEN_ID_POSITIONS.save(deps.storage, token_id, &token_index)?;
 
-            //BASE_TOKEN_ID_CW721_ID.save(deps.storage, token_id, &cw721_id)?;
-            //CW721_ID_BASE_TOKEN_ID.save(deps.storage, cw721_id, &token_id)?;
+            BASE_TOKEN_ID_CW721_ID.save(deps.storage, token_id, &cw721_id)?;
+            CW721_ID_BASE_TOKEN_ID.save(deps.storage, cw721_id, &token_id)?;
 
             ids.push(token_id);
 
@@ -723,22 +723,22 @@ fn _execute_mint(
     // TODO: add another element of randomness here?
     let (token_index, base_token_id) =
         quick_shuffle_token_ids_and_draw(deps.as_ref(), &env, info.sender, current_token_supply)?;
-    println!("reached point {:?} : {:?}", 5, base_token_id);
     let cw721_id = BASE_TOKEN_ID_CW721_ID.load(deps.storage, base_token_id)?;
-    println!("reached point {:?} : {:?}", 6, cw721_id);
+
     // 0 - collection (internal) id, 1 - (internal) token_id
     let cw721vec = cw721_id.split(':').collect::<Vec<&str>>();
-    println!("reached point {:?}", 3);
+
     // Create mint msgs
     let coll_id: u64 = cw721vec[0].to_owned().parse::<u64>().unwrap();
     let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, coll_id)?;
 
-    let mint_msg = Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
-        token_id: base_token_id.to_string(),
-        owner: minter_addr.clone().into_string(),
-        token_uri: Some(format!("{}/{}", coll_info.base_token_uri, base_token_id)),
-        extension: config.extension,
-    });
+    let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
+        Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+            token_id: base_token_id.to_string(),
+            owner: minter_addr.clone().into_string(),
+            token_uri: Some(format!("{}/{}", coll_info.base_token_uri, base_token_id)),
+            extension: config.extension,
+        });
 
     let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
 
@@ -931,12 +931,13 @@ fn _execute_mint_bundle(
 
         let token_index = BASE_TOKEN_ID_POSITIONS.load(deps.storage, token_id)?;
 
-        let mint_msg = Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
-            token_id: token_id.to_string(),
-            owner: info.sender.clone().into_string(),
-            token_uri: Some(format!("{}/{}", coll_info.base_token_uri, token_id)),
-            extension: config.extension.clone(),
-        });
+        let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
+            Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+                token_id: token_id.to_string(),
+                owner: info.sender.clone().into_string(),
+                token_uri: Some(format!("{}/{}", coll_info.base_token_uri, token_id)),
+                extension: config.extension.clone(),
+            });
 
         let msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: collection.address,
@@ -1138,12 +1139,13 @@ fn _execute_claim_by_token_id(
             let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
 
             // Create mint msgs
-            let mint_msg = Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
-                token_id: token_id.to_string(),
-                owner: minter_addr.to_string(),
-                token_uri: Some(format!("{}/{}", coll_info.base_token_uri, token_id)),
-                extension: config.extension.clone(),
-            });
+            let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
+                Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+                    token_id: token_id.to_string(),
+                    owner: minter_addr.to_string(),
+                    token_uri: Some(format!("{}/{}", coll_info.base_token_uri, token_id)),
+                    extension: config.extension.clone(),
+                });
             let msg = CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_address.to_string(),
                 msg: to_binary(&mint_msg)?,

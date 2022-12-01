@@ -1,9 +1,8 @@
 use crate::state::SharedCollectionInfo;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary, CosmosMsg, Empty, Timestamp, Uint128};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub base_fields: BaseInitMsg,
     /// name of nft project
@@ -28,7 +27,7 @@ pub struct InstantiateMsg {
 
 /// Base fields that are used for instantiation
 /// dual purpose: also used for update config funciton
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct BaseInitMsg {
     /// alternate address for maintaining/management of this contract
     pub maintainer_address: Option<String>,
@@ -54,7 +53,7 @@ pub struct BaseInitMsg {
     pub bundle_enabled: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
+#[cw_serde]
 pub struct CollectionInfoMsg {
     /// token supply for this collection
     pub token_supply: u32,
@@ -72,7 +71,7 @@ pub struct CollectionInfoMsg {
 /// Shared Collection Info that stores revenue/royalty split as well the optional secondary metadata
 /// uri that will allow creators to add evolving metadata in addition to the static metadata
 /// that is in `base_token_uri`
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
+#[cw_serde]
 pub struct SharedCollectionInfoMsg {
     /// initial sales split. has a hardcap of 10000 bps equating to 100.00%
     pub mint_revenue_share: Vec<RoyaltyInfoMsg>,
@@ -82,7 +81,7 @@ pub struct SharedCollectionInfoMsg {
     pub secondary_market_royalties: Vec<RoyaltyInfoMsg>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
+#[cw_serde]
 pub struct RoyaltyInfoMsg {
     /// address that receives this split
     pub address: String,
@@ -95,8 +94,7 @@ pub struct RoyaltyInfoMsg {
 
 /// Information about the admin of a contract.
 /// may have been stolen from daodao
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum Admin {
     /// A specific address.
     Address { address: String },
@@ -108,8 +106,7 @@ pub enum Admin {
 }
 
 /// Execution Target enum used for submodule hooks
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecutionTarget {
     /// No target was specified
     None,
@@ -121,8 +118,7 @@ pub enum ExecutionTarget {
 
 /// Mint Type enum that determines which mint type was intended by the
 /// entry points
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum MintType {
     /// default
     None,
@@ -139,7 +135,7 @@ pub enum MintType {
 }
 
 /// Information needed to instantiate a submodule.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct ModuleInstantiateInfo {
     /// Code ID of the contract to be instantiated.
     pub code_id: u64,
@@ -151,8 +147,7 @@ pub struct ModuleInstantiateInfo {
     pub label: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     /// shmeh
     FirstTimeShuffle {},
@@ -198,8 +193,7 @@ pub enum ExecuteMsg {
     DisburseFunds {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum QueryMsg {
     /// Gets Config + some other fields and returns `ConfigResponse`
     GetConfig {},
@@ -276,7 +270,7 @@ pub enum QueryMsg {
     GetCW721Addrs {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct ConfigResponse {
     /// admin address for this contract. has special permissions in contract
     pub admin: Addr,
@@ -312,7 +306,7 @@ pub struct ConfigResponse {
     pub bundle_completed: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct CollectionInfoResponse {
     /// address to contract that holds the nfts"
     pub cw721_addr: Option<Addr>,
@@ -328,7 +322,7 @@ pub struct CollectionInfoResponse {
 
 /// response object that has token supply data
 /// was used for testing
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct TokenDataResponse {
     pub total_token_supply: u32,
     pub remaining_token_supply: u32,
@@ -336,7 +330,7 @@ pub struct TokenDataResponse {
 
 /// Used as execution msg and query response for single Address-Value pairs
 /// eg: address has 4 mints
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq)]
+#[cw_serde]
 pub struct AddressValMsg {
     /// address for the promised values
     pub address: String,
@@ -345,7 +339,7 @@ pub struct AddressValMsg {
 }
 
 /// Simple struct for address-bal
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq)]
+#[cw_serde]
 pub struct AddrBal {
     pub addr: Addr,
     pub balance: Uint128,

@@ -1,9 +1,8 @@
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Timestamp};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
 /// General Instantiation message. also used to pass updates for the config
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct InstantiateMsg {
     ///
     pub maintainer_address: Option<String>,
@@ -11,8 +10,7 @@ pub struct InstantiateMsg {
     pub end_time: Option<Timestamp>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     /// Leverages InstantiateMsg to pass updates to the config for the contract
     UpdateConfig(InstantiateMsg),
@@ -42,8 +40,7 @@ pub enum ExecuteMsg {
     IncrementAddressClaimedPromisedMintCount(String),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum QueryMsg {
     /// Gets `state::Config` and returns it
     GetConfig {},
@@ -111,7 +108,7 @@ pub enum QueryMsg {
 /// Used as execution msg and query response for single Address-Value pairs
 /// eg address is promised token_id 8 or address is promised 3 mints or
 /// token_id 6 was minted by address: "juno1addr"
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq)]
+#[cw_serde]
 pub struct AddressValMsg {
     /// address for the promised values
     pub address: String,
@@ -120,7 +117,7 @@ pub struct AddressValMsg {
 }
 
 /// Response object used to return a list of `token_id`s promised/claimed by an address
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq)]
+#[cw_serde]
 pub struct AddressPromisedTokensResponse {
     /// address for the promised values
     pub address: String,
@@ -130,7 +127,7 @@ pub struct AddressPromisedTokensResponse {
 
 /// Response object used to check an address' promised and claimed mints
 /// should be used as giveaways and claimable when the window opens
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct CheckAirdropPromisedMintResponse {
     /// minter's address being checked
     pub minter_addr: Addr,
@@ -146,7 +143,7 @@ pub struct CheckAirdropPromisedMintResponse {
 
 /// Response object used to check an address' promised and claimed `token_id`s
 /// Promised `token_id`s should generally be used for 1:1s, other giveaways, etc
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct CheckAirdropPromisedTokensResponse {
     /// minter's address being checked
     pub minter_addr: Addr,

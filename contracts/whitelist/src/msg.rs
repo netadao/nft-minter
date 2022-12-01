@@ -1,9 +1,8 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;
 
 use cosmwasm_std::{Addr, Timestamp, Uint128};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct InstantiateMsg {
     /// Address for whoever wants to maintain/manage the contract
     pub maintainer_address: Option<String>,
@@ -22,8 +21,7 @@ pub struct InstantiateMsg {
     pub mint_price: Uint128,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     /// Leverages InstantiateMsg to pass updates to the config for the contract
     UpdateConfig(InstantiateMsg),
@@ -41,8 +39,7 @@ pub enum ExecuteMsg {
     UpdateAddressMintTracker(String),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum QueryMsg {
     /// Gets `state::Config` a
     GetConfig {},
@@ -68,7 +65,7 @@ pub enum QueryMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct ConfigResponse {
     /// should be the minting contract or creator of the campaign
     pub admin: Addr,
@@ -95,7 +92,7 @@ pub struct ConfigResponse {
     pub whitelist_address_count: u32,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct CheckWhitelistResponse {
     /// address that was checked for WL eligibility
     pub minter_addr: Addr,

@@ -76,7 +76,7 @@ mod tests {
     const USER10: &str = "user10";
     const USER25: &str = "user25";
     const ADMIN: &str = "admin";
-    const NATIVE_DENOM: &str = "ujuno";
+    const NATIVE_DENOM: &str = "ujunox";
     const MAINTAINER_ADDR: &str = "whiskey";
     const INVALID: &str = "invalid";
 
@@ -289,6 +289,17 @@ mod tests {
             }
         }))
         .ok();
+
+        let msg: ExecuteMsg = ExecuteMsg::FirstTimeShuffle {};
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract_addr.clone(),
+                    &msg,
+                    &[],
+                )
+                .unwrap();
 
         let cw_template_contract = CwTemplateContract(
             cw_template_contract_addr,
@@ -531,7 +542,7 @@ mod tests {
             */
             let nft_minter_query: MinterResponse = app
                 .wrap()
-                .query_wasm_smart(&cw721_addrs[0].address, &Cw721QueryMsg::Minter {})
+                .query_wasm_smart(&cw721_addrs[0].address, &Cw721QueryMsg::<Empty>::Minter {})
                 .unwrap();
             println!("nft_minter_query {:?}", nft_minter_query);
 
@@ -613,7 +624,7 @@ mod tests {
             */
             let nft_minter_query: MinterResponse = app
                 .wrap()
-                .query_wasm_smart(&cw721_addrs[0].address, &Cw721QueryMsg::Minter {})
+                .query_wasm_smart(&cw721_addrs[0].address, &Cw721QueryMsg::<Empty>::Minter {})
                 .unwrap();
             println!("nft_minter_query {:?}", nft_minter_query);
 
@@ -1008,6 +1019,17 @@ mod tests {
             let config: ConfigResponse = app
                 .wrap()
                 .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            let msg: ExecuteMsg = ExecuteMsg::FirstTimeShuffle {};
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
                 .unwrap();
 
             app.execute_contract(
@@ -4599,6 +4621,17 @@ mod tests {
                 "get_collection_current_supply {:?}",
                 get_collection_current_supply
             );
+
+            let msg: ExecuteMsg = ExecuteMsg::FirstTimeShuffle {};
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
+                .unwrap();
 
             let msg = ExecuteMsg::MintBundle {};
 
