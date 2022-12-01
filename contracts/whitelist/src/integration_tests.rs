@@ -9,22 +9,12 @@ mod tests {
     use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor};
 
     use crate::contract::instantiate;
-    use cw20::Cw20Coin;
 
     pub fn contract_template() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new(
             crate::contract::execute,
             crate::contract::instantiate,
             crate::query::query,
-        );
-        Box::new(contract)
-    }
-
-    pub fn cw20_contract() -> Box<dyn Contract<Empty>> {
-        let contract = ContractWrapper::new(
-            cw20_base::contract::execute,
-            cw20_base::contract::instantiate,
-            cw20_base::contract::query,
         );
         Box::new(contract)
     }
@@ -120,63 +110,6 @@ mod tests {
             println!("config {:?}", config);
 
             assert_eq!(config.max_whitelist_address_count, 5)
-        }
-
-        #[test]
-        fn init_cw20() {
-            let (mut app, _cw_template_contract) = proper_instantiate();
-
-            let cw20_addr = instantiate_cw20(&mut app, vec![]);
-            println!("{:?}", cw20_addr);
-            assert_eq!(5, 5);
-        }
-
-        fn instantiate_cw20(app: &mut App, initial_balances: Vec<Cw20Coin>) -> Addr {
-            let cw20_id = app.store_code(cw20_contract());
-            let msg = cw20_base::msg::InstantiateMsg {
-                name: String::from("Test"),
-                symbol: String::from("TEST"),
-                decimals: 6,
-                initial_balances,
-                mint: None,
-                marketing: None,
-            };
-
-            app.instantiate_contract(cw20_id, Addr::unchecked(ADMIN), &msg, &[], "cw20", None)
-                .unwrap()
-        }
-
-        #[test]
-        fn proper_init_2() {
-            let mut app = mock_app();
-            let cw_template_id = app.store_code(contract_template());
-            let _deps = mock_dependencies_with_balance(&coins(2, "token"));
-            let _info = mock_info("creator", &coins(INITIAL_BALANCE, NATIVE_DENOM));
-
-            let _cw20_addr = instantiate_cw20(&mut app, vec![]);
-
-            // 1571797419879305533
-            let msg = InstantiateMsg {
-                start_time: Timestamp::from_seconds(1571797420), // 1571797419
-                end_time: Timestamp::from_seconds(1656801750),
-                maintainer_address: Some(USER.to_owned()),
-                max_whitelist_address_count: 5,
-                max_per_address_mint: 3,
-                mint_price: Uint128::from(MINT_PRICE),
-            };
-
-            let cw_template_contract_addr = app
-                .instantiate_contract(
-                    cw_template_id,
-                    Addr::unchecked(ADMIN),
-                    &msg,
-                    &[],
-                    "test",
-                    None,
-                )
-                .unwrap();
-
-            let _cw_template_contract = CwTemplateContract(cw_template_contract_addr);
         }
 
         #[test]

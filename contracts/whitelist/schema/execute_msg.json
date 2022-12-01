@@ -1,39 +1,153 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ExecuteMsg",
-  "anyOf": [
+  "oneOf": [
     {
+      "description": "Leverages InstantiateMsg to pass updates to the config for the contract",
       "type": "object",
       "required": [
-        "increment"
+        "update_config"
       ],
       "properties": {
-        "increment": {
-          "type": "object"
+        "update_config": {
+          "$ref": "#/definitions/InstantiateMsg"
         }
       },
       "additionalProperties": false
     },
     {
+      "description": "Update's the maintainer's address for the contract.  This address also has the ability to manage the contract alongside the admin. This is a separate function so the minter contract can easily pass an update if the maintainer needs to be updated",
       "type": "object",
       "required": [
-        "reset"
+        "update_maintainer_address"
       ],
       "properties": {
-        "reset": {
-          "type": "object",
-          "required": [
-            "count"
-          ],
-          "properties": {
-            "count": {
-              "type": "integer",
-              "format": "int32"
-            }
+        "update_maintainer_address": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Adds each address in the list of strings to the whitelist",
+      "type": "object",
+      "required": [
+        "add_to_whitelist"
+      ],
+      "properties": {
+        "add_to_whitelist": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       },
       "additionalProperties": false
+    },
+    {
+      "description": "Removes each address in the list of stirngs from the whitelist",
+      "type": "object",
+      "required": [
+        "remove_from_whitelist"
+      ],
+      "properties": {
+        "remove_from_whitelist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "For the address passed in, we'll increment their mint count by 1 in the `ADDRESS_MINT_TRACKER`",
+      "type": "object",
+      "required": [
+        "update_address_mint_tracker"
+      ],
+      "properties": {
+        "update_address_mint_tracker": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     }
-  ]
+  ],
+  "definitions": {
+    "InstantiateMsg": {
+      "type": "object",
+      "required": [
+        "end_time",
+        "max_per_address_mint",
+        "max_whitelist_address_count",
+        "mint_price",
+        "start_time"
+      ],
+      "properties": {
+        "end_time": {
+          "description": "time when the whitelist ends. There is a hard \"stop\" once the public mint starts, but this will allow users to schedule WL to end before public mint begins",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            }
+          ]
+        },
+        "maintainer_address": {
+          "description": "Address for whoever wants to maintain/manage the contract",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "max_per_address_mint": {
+          "description": "max mints per address",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "max_whitelist_address_count": {
+          "description": "max number of addresses on the whitelist",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "mint_price": {
+          "description": "mint price for WL. The denom is controlled via the main minting contract. only native and ibc/ denoms are allowed",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "start_time": {
+          "description": "Time the whitelist addresses are allowed to mint",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            }
+          ]
+        }
+      }
+    },
+    "Timestamp": {
+      "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Uint64"
+        }
+      ]
+    },
+    "Uint128": {
+      "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+      "type": "string"
+    },
+    "Uint64": {
+      "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+      "type": "string"
+    }
+  }
 }

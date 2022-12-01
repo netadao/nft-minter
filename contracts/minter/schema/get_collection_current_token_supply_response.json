@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GetCollectionCurrentTokenSupplyResponse",
+  "type": "array",
+  "items": {
+    "type": "array",
+    "items": [
+      {
+        "type": "integer",
+        "format": "uint64",
+        "minimum": 0.0
+      },
+      {
+        "type": "integer",
+        "format": "uint32",
+        "minimum": 0.0
+      }
+    ],
+    "maxItems": 2,
+    "minItems": 2
+  }
+}

@@ -1,10 +1,9 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;
 
 use cosmwasm_std::{Addr, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct Config {
     pub admin: Addr,
     pub maintainer_addr: Option<Addr>,
@@ -23,7 +22,7 @@ pub struct Config {
     pub bundle_completed: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
+#[cw_serde]
 pub struct CollectionInfo {
     pub id: u64,
     pub token_supply: u32,
@@ -33,13 +32,13 @@ pub struct CollectionInfo {
     pub secondary_metadata_uri: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
+#[cw_serde]
 pub struct SharedCollectionInfo {
     pub mint_revenue_share: Vec<RoyaltyInfo>,
     pub secondary_market_royalties: Vec<RoyaltyInfo>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq, Ord, PartialOrd)]
+#[cw_serde]
 pub struct RoyaltyInfo {
     pub addr: Addr,
     pub bps: u32,
@@ -48,6 +47,7 @@ pub struct RoyaltyInfo {
 
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const CURRENT_TOKEN_SUPPLY: Item<u32> = Item::new("current_token_supply");
+pub const TOTAL_TOKEN_SUPPLY: Item<u32> = Item::new("total_token_supply");
 pub const ADDRESS_MINT_TRACKER: Map<Addr, u32> = Map::new("address_mint_tracker");
 pub const BUNDLE_MINT_TRACKER: Map<Addr, u32> = Map::new("bundle_mint_tracker");
 // (idx, token_id)

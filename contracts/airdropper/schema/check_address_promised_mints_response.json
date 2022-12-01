@@ -1,18 +1,43 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "State",
+  "title": "CheckAddressPromisedMintsResponse",
+  "description": "Response object used to check an address' promised and claimed mints should be used as giveaways and claimable when the window opens",
   "type": "object",
   "required": [
-    "count",
-    "owner"
+    "airdrop_mint_in_progress",
+    "airdrop_mint_is_closed",
+    "claimed_mint_count",
+    "minter_addr",
+    "promised_mint_count"
   ],
   "properties": {
-    "count": {
-      "type": "integer",
-      "format": "int32"
+    "airdrop_mint_in_progress": {
+      "description": "checks if airdrop is in progress",
+      "type": "boolean"
     },
-    "owner": {
-      "$ref": "#/definitions/Addr"
+    "airdrop_mint_is_closed": {
+      "description": "checks if airdrop is closed or not",
+      "type": "boolean"
+    },
+    "claimed_mint_count": {
+      "description": "count of claimed promised mints for an address",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "minter_addr": {
+      "description": "minter's address being checked",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        }
+      ]
+    },
+    "promised_mint_count": {
+      "description": "count of promised mints",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
     }
   },
   "definitions": {

@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GetRemainingTokensResponse",
+  "description": "response object that has token supply data was used for testing",
+  "type": "object",
+  "required": [
+    "remaining_token_supply",
+    "total_token_supply"
+  ],
+  "properties": {
+    "remaining_token_supply": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "total_token_supply": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  }
+}

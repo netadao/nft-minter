@@ -5,8 +5,9 @@ use cw_utils::maybe_addr;
 
 use crate::msg::{AddrBal, AddressValMsg, ConfigResponse, QueryMsg, TokenDataResponse};
 use crate::state::{
-    CollectionInfo, ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES, CONFIG,
-    CURRENT_TOKEN_SUPPLY, CW721_ADDRS, WHITELIST_ADDR,
+    CollectionInfo, ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES, BUNDLE_MINT_TRACKER,
+    COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG, CURRENT_TOKEN_SUPPLY, CW721_ADDRS,
+    CW721_COLLECTION_INFO, WHITELIST_ADDR,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -22,7 +23,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetEscrowBalances { start_after, limit } => {
             query_get_escrow_balances(deps, env, start_after, limit)
         }
-
+        /*
         QueryMsg::GetShuffledTokenIds { start_after, limit } => to_binary(
             &query_get_shuffled_token_ids(deps, env, start_after, limit)?,
         ),
@@ -41,6 +42,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetCw721ShuffledTokenIds { start_after, limit } => to_binary(
             &query_get_cw721_shuffled_token_ids(deps, env, start_after, limit)?,
         ),
+        */
         QueryMsg::GetCw721CollectionInfo { start_after, limit } => to_binary(
             &query_get_cw721_collection_info(deps, env, start_after, limit)?,
         ),
@@ -166,9 +168,9 @@ fn query_get_cw721_addrs(deps: Deps, _env: Env) -> StdResult<Binary> {
     to_binary(&addrs.unwrap())
 }
 
+/*
 use crate::state::{
-    BASE_TOKEN_ID_CW721_ID, BASE_TOKEN_ID_POSITIONS, BUNDLE_MINT_TRACKER,
-    COLLECTION_CURRENT_TOKEN_SUPPLY, CW721_COLLECTION_INFO, CW721_ID_BASE_TOKEN_ID,
+    BASE_TOKEN_ID_CW721_ID, BASE_TOKEN_ID_POSITIONS, CW721_ID_BASE_TOKEN_ID,
     CW721_SHUFFLED_TOKEN_IDS, SHUFFLED_BASE_TOKEN_IDS,
 };
 
@@ -300,6 +302,7 @@ fn query_get_cw721_shuffled_token_ids(
 
     Ok(tokens.unwrap())
 }
+*/
 
 fn query_get_cw721_collection_info(
     deps: Deps,

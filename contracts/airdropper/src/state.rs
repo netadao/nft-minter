@@ -1,10 +1,9 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;
 
 use cosmwasm_std::{Addr, Timestamp};
 use cw_storage_plus::{Item, Map};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct Config {
     /// should be the minting contract OR the creator of the campaign
     pub admin: Addr,

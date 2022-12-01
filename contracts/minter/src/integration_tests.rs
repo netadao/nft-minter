@@ -76,7 +76,7 @@ mod tests {
     const USER10: &str = "user10";
     const USER25: &str = "user25";
     const ADMIN: &str = "admin";
-    const NATIVE_DENOM: &str = "ujuno";
+    const NATIVE_DENOM: &str = "ujunox";
     const MAINTAINER_ADDR: &str = "whiskey";
     const INVALID: &str = "invalid";
 
@@ -289,6 +289,17 @@ mod tests {
             }
         }))
         .ok();
+
+        let msg: ExecuteMsg = ExecuteMsg::FirstTimeShuffle {};
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract_addr.clone(),
+                    &msg,
+                    &[],
+                )
+                .unwrap();
 
         let cw_template_contract = CwTemplateContract(
             cw_template_contract_addr,
@@ -515,23 +526,23 @@ mod tests {
                 .unwrap();
 
             println!("cw721_addrs {:?}", cw721_addrs);
+            /*
+                        let shuffled_token_ids: Vec<u32> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(5),
+                                },
+                            )
+                            .unwrap();
 
-            let shuffled_token_ids: Vec<u32> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(5),
-                    },
-                )
-                .unwrap();
-
-            println!("shuffled_token_ids {:?}", shuffled_token_ids);
-
+                        println!("shuffled_token_ids {:?}", shuffled_token_ids);
+            */
             let nft_minter_query: MinterResponse = app
                 .wrap()
-                .query_wasm_smart(&cw721_addrs[0].address, &Cw721QueryMsg::Minter {})
+                .query_wasm_smart(&cw721_addrs[0].address, &Cw721QueryMsg::<Empty>::Minter {})
                 .unwrap();
             println!("nft_minter_query {:?}", nft_minter_query);
 
@@ -597,23 +608,23 @@ mod tests {
                 .unwrap();
 
             println!("cw721_addrs {:?}", cw721_addrs);
+            /*
+                        let shuffled_token_ids: Vec<u32> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(50),
+                                },
+                            )
+                            .unwrap();
 
-            let shuffled_token_ids: Vec<u32> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(50),
-                    },
-                )
-                .unwrap();
-
-            println!("shuffled_token_ids {:?}", shuffled_token_ids);
-
+                        println!("shuffled_token_ids {:?}", shuffled_token_ids);
+            */
             let nft_minter_query: MinterResponse = app
                 .wrap()
-                .query_wasm_smart(&cw721_addrs[0].address, &Cw721QueryMsg::Minter {})
+                .query_wasm_smart(&cw721_addrs[0].address, &Cw721QueryMsg::<Empty>::Minter {})
                 .unwrap();
             println!("nft_minter_query {:?}", nft_minter_query);
 
@@ -622,55 +633,55 @@ mod tests {
                 cw_template_contract.addr().to_string(),
                 nft_minter_query.minter
             );
+            /*
+                        let get_cw721_id_base_token_ids: Vec<(String, u32)> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetCw721IdBaseTokenIds {
+                                    start_after: None,
+                                    limit: Some(50),
+                                },
+                            )
+                            .unwrap();
 
-            let get_cw721_id_base_token_ids: Vec<(String, u32)> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetCw721IdBaseTokenIds {
-                        start_after: None,
-                        limit: Some(50),
-                    },
-                )
-                .unwrap();
+                        println!(
+                            "get_cw721_id_base_token_ids {:?}",
+                            get_cw721_id_base_token_ids
+                        );
 
-            println!(
-                "get_cw721_id_base_token_ids {:?}",
-                get_cw721_id_base_token_ids
-            );
+                        let get_base_token_id_cw721_id: Vec<(u32, String)> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetBaseTokenIdCw721Id {
+                                    start_after: None,
+                                    limit: Some(50),
+                                },
+                            )
+                            .unwrap();
 
-            let get_base_token_id_cw721_id: Vec<(u32, String)> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetBaseTokenIdCw721Id {
-                        start_after: None,
-                        limit: Some(50),
-                    },
-                )
-                .unwrap();
+                        println!(
+                            "get_base_token_id_cw721_id {:?}",
+                            get_base_token_id_cw721_id
+                        );
 
-            println!(
-                "get_base_token_id_cw721_id {:?}",
-                get_base_token_id_cw721_id
-            );
+                        let get_cw721_shuffled_token_ids: Vec<(u64, Vec<u32>)> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetCw721ShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(50),
+                                },
+                            )
+                            .unwrap();
 
-            let get_cw721_shuffled_token_ids: Vec<(u64, Vec<u32>)> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetCw721ShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(50),
-                    },
-                )
-                .unwrap();
-
-            println!(
-                "get_cw721_shuffled_token_ids {:?}",
-                get_cw721_shuffled_token_ids
-            );
-
+                        println!(
+                            "get_cw721_shuffled_token_ids {:?}",
+                            get_cw721_shuffled_token_ids
+                        );
+            */
             let get_cw721_collection_info: Vec<(u64, CollectionInfo)> = app
                 .wrap()
                 .query_wasm_smart(
@@ -1008,6 +1019,17 @@ mod tests {
             let config: ConfigResponse = app
                 .wrap()
                 .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            let msg: ExecuteMsg = ExecuteMsg::FirstTimeShuffle {};
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
                 .unwrap();
 
             app.execute_contract(
@@ -3804,20 +3826,20 @@ mod tests {
                 .unwrap();
 
             println!("### token_data {:?}", token_data);
+            /*
+                        let shuffled_token_ids: Vec<u32> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(5),
+                                },
+                            )
+                            .unwrap();
 
-            let shuffled_token_ids: Vec<u32> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(5),
-                    },
-                )
-                .unwrap();
-
-            println!("##### shuffled_token_ids {:?}", shuffled_token_ids);
-
+                        println!("##### shuffled_token_ids {:?}", shuffled_token_ids);
+            */
             let maintainer_address: Option<String> = config
                 .maintainer_addr
                 .clone()
@@ -3861,20 +3883,20 @@ mod tests {
                 .unwrap();
 
             println!("current_token_supply {:?}", res);
+            /*
+                        let shuffled_token_ids: Vec<u32> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(5),
+                                },
+                            )
+                            .unwrap();
 
-            let shuffled_token_ids: Vec<u32> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(5),
-                    },
-                )
-                .unwrap();
-
-            println!("shuffled_token_ids {:?}", shuffled_token_ids);
-
+                        println!("shuffled_token_ids {:?}", shuffled_token_ids);
+            */
             let token_data: TokenDataResponse = app
                 .wrap()
                 .query_wasm_smart(
@@ -3898,20 +3920,20 @@ mod tests {
                     &[coin(2_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
+            /*
+                        let shuffled_token_ids: Vec<u32> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(5),
+                                },
+                            )
+                            .unwrap();
 
-            let shuffled_token_ids: Vec<u32> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(5),
-                    },
-                )
-                .unwrap();
-
-            println!("shuffled_token_ids {:?}", shuffled_token_ids);
-
+                        println!("shuffled_token_ids {:?}", shuffled_token_ids);
+            */
             println!("current_token_supply {:?}", res);
 
             let token_data: TokenDataResponse = app
@@ -4011,20 +4033,20 @@ mod tests {
                 .unwrap();
 
             println!("### token_data {:?}", token_data);
+            /*
+                        let shuffled_token_ids: Vec<u32> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(5),
+                                },
+                            )
+                            .unwrap();
 
-            let shuffled_token_ids: Vec<u32> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(5),
-                    },
-                )
-                .unwrap();
-
-            println!("##### shuffled_token_ids {:?}", shuffled_token_ids);
-
+                        println!("##### shuffled_token_ids {:?}", shuffled_token_ids);
+            */
             let maintainer_address: Option<String> = config
                 .maintainer_addr
                 .clone()
@@ -4069,20 +4091,20 @@ mod tests {
                 .unwrap();
 
             println!("current_token_supply {:?}", res);
+            /*
+                        let shuffled_token_ids: Vec<u32> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(5),
+                                },
+                            )
+                            .unwrap();
 
-            let shuffled_token_ids: Vec<u32> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(5),
-                    },
-                )
-                .unwrap();
-
-            println!("shuffled_token_ids {:?}", shuffled_token_ids);
-
+                        println!("shuffled_token_ids {:?}", shuffled_token_ids);
+            */
             let token_data: TokenDataResponse = app
                 .wrap()
                 .query_wasm_smart(
@@ -4107,20 +4129,20 @@ mod tests {
                     &[coin(2_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
+            /*
+                        let shuffled_token_ids: Vec<u32> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(5),
+                                },
+                            )
+                            .unwrap();
 
-            let shuffled_token_ids: Vec<u32> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(5),
-                    },
-                )
-                .unwrap();
-
-            println!("shuffled_token_ids {:?}", shuffled_token_ids);
-
+                        println!("shuffled_token_ids {:?}", shuffled_token_ids);
+            */
             println!("current_token_supply {:?}", res);
 
             let token_data: TokenDataResponse = app
@@ -4489,23 +4511,23 @@ mod tests {
 
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
             app.update_block(|mut block| block.height += 1);
+            /*
+                        let get_cw721_shuffled_token_ids: Vec<(u64, Vec<u32>)> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetCw721ShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(50),
+                                },
+                            )
+                            .unwrap();
 
-            let get_cw721_shuffled_token_ids: Vec<(u64, Vec<u32>)> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetCw721ShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(50),
-                    },
-                )
-                .unwrap();
-
-            println!(
-                "get_cw721_shuffled_token_ids {:?}",
-                get_cw721_shuffled_token_ids
-            );
-
+                        println!(
+                            "get_cw721_shuffled_token_ids {:?}",
+                            get_cw721_shuffled_token_ids
+                        );
+            */
             let _res = app
                 .execute_contract(
                     Addr::unchecked(USER25),
@@ -4537,23 +4559,23 @@ mod tests {
             assert_eq!(token_data.remaining_token_supply, 8);
 
             println!("### config {:?}", token_data);
+            /*
+                        let get_cw721_shuffled_token_ids: Vec<(u64, Vec<u32>)> = app
+                            .wrap()
+                            .query_wasm_smart(
+                                &cw_template_contract.addr(),
+                                &QueryMsg::GetCw721ShuffledTokenIds {
+                                    start_after: None,
+                                    limit: Some(50),
+                                },
+                            )
+                            .unwrap();
 
-            let get_cw721_shuffled_token_ids: Vec<(u64, Vec<u32>)> = app
-                .wrap()
-                .query_wasm_smart(
-                    &cw_template_contract.addr(),
-                    &QueryMsg::GetCw721ShuffledTokenIds {
-                        start_after: None,
-                        limit: Some(50),
-                    },
-                )
-                .unwrap();
-
-            println!(
-                "get_cw721_shuffled_token_ids {:?}",
-                get_cw721_shuffled_token_ids
-            );
-
+                        println!(
+                            "get_cw721_shuffled_token_ids {:?}",
+                            get_cw721_shuffled_token_ids
+                        );
+            */
             // assert_eq!(5, 7);
         }
 
@@ -4599,6 +4621,17 @@ mod tests {
                 "get_collection_current_supply {:?}",
                 get_collection_current_supply
             );
+
+            let msg: ExecuteMsg = ExecuteMsg::FirstTimeShuffle {};
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
+                .unwrap();
 
             let msg = ExecuteMsg::MintBundle {};
 

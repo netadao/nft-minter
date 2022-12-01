@@ -1,15 +1,276 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "QueryMsg",
-  "anyOf": [
+  "oneOf": [
     {
+      "description": "Gets `state::Config` and returns it",
       "type": "object",
       "required": [
-        "get_count"
+        "get_config"
       ],
       "properties": {
-        "get_count": {
+        "get_config": {
           "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Lists all promised token_ids for addresses from `ADDRESS_PROMISED_TOKEN_IDS` default sort is ASCENDING by ADDRESS. returns `Vec<AddressPromisedTokens>` which is in Vec(address-Vec[u32]) form",
+      "type": "object",
+      "required": [
+        "get_address_promised_token_i_ds"
+      ],
+      "properties": {
+        "get_address_promised_token_i_ds": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "address",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Lists all token_ids that have been assigned in `ASSIGNED_TOKEN_IDS` default sort is ASCENDING by token_id. returns Vec<u32>",
+      "type": "object",
+      "required": [
+        "get_assigned_token_i_ds"
+      ],
+      "properties": {
+        "get_assigned_token_i_ds": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "token_id",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Lists all assigned token_id-address pairs in `ASSIGNED_TOKEN_IDS` default sort is ASCENDING by token_id. returns Vec<AddressValMsg>",
+      "type": "object",
+      "required": [
+        "get_assigned_token_i_ds_with_address"
+      ],
+      "properties": {
+        "get_assigned_token_i_ds_with_address": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "token_id",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Lists all token_ids that are claimed in `CLAIMED_TOKEN_IDS` default sort is ASCENDING by token_id. returns Vec<u32>",
+      "type": "object",
+      "required": [
+        "get_claimed_token_i_ds"
+      ],
+      "properties": {
+        "get_claimed_token_i_ds": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "token_id",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Lists all token_ids and which address claimed themin `CLAIMED_TOKEN_IDS` default sort is ASCENDING by token_id. returns Vec<AddressValMsg>",
+      "type": "object",
+      "required": [
+        "get_claimed_token_i_ds_with_address"
+      ],
+      "properties": {
+        "get_claimed_token_i_ds_with_address": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "token_id",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Lists all addresses and the number of promised mints they have in `ADDRESS_PROMISED_MINTS` default sort is ASCENDING by address. returns Vec<AddressValMsg>",
+      "type": "object",
+      "required": [
+        "get_address_promised_mints"
+      ],
+      "properties": {
+        "get_address_promised_mints": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "address",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Lists all address and their count of claimed promised mints that are in `ADDRESS_CLAIMED_PROMISED_MINTS`. default sort is ASCENDING by address. Returns Vec<AddressValMsg>",
+      "type": "object",
+      "required": [
+        "get_claimed_address_promised_mints"
+      ],
+      "properties": {
+        "get_claimed_address_promised_mints": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "address",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Checks an address' promised mints as well as if the airdrop window info (closed, inprogress) Returns `CheckAirdropPromisedMintResponse` which has mint counts that were promised, claimed and remaining (diff between claimed and promised)",
+      "type": "object",
+      "required": [
+        "check_address_promised_mints"
+      ],
+      "properties": {
+        "check_address_promised_mints": {
+          "type": "object",
+          "required": [
+            "minter_address"
+          ],
+          "properties": {
+            "minter_address": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Checks an address' promised tokens.  This is intended for use for specialized tokens, 1:1s, general promises, etc. Also returns info on airdrop window (closed/inprogress). Returns `CheckAirdropPromisedTokensResponse` which has the promised and claimedtoken_ids",
+      "type": "object",
+      "required": [
+        "check_address_promised_tokens"
+      ],
+      "properties": {
+        "check_address_promised_tokens": {
+          "type": "object",
+          "required": [
+            "minter_address"
+          ],
+          "properties": {
+            "minter_address": {
+              "type": "string"
+            }
+          }
         }
       },
       "additionalProperties": false
