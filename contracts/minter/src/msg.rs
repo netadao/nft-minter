@@ -250,16 +250,11 @@ pub enum QueryMsg {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
-    */
-    GetCw721ShuffledTokenIds {
-        /// token_id
-        start_after: Option<u64>,
-        limit: Option<u32>,
-    },
     GetTokenMintedBy {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    */
     GetCw721CollectionInfo {
         /// token_id
         start_after: Option<u64>,

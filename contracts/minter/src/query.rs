@@ -42,13 +42,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetCw721ShuffledTokenIds { start_after, limit } => to_binary(
             &query_get_cw721_shuffled_token_ids(deps, env, start_after, limit)?,
         ),
-        */
-        QueryMsg::GetCw721ShuffledTokenIds { start_after, limit } => to_binary(
-            &query_get_cw721_shuffled_token_ids(deps, env, start_after, limit)?,
-        ),
         QueryMsg::GetTokenMintedBy { start_after, limit } => {
             to_binary(&query_get_token_minted_by(deps, env, start_after, limit)?)
         }
+        */
         QueryMsg::GetCw721CollectionInfo { start_after, limit } => to_binary(
             &query_get_cw721_collection_info(deps, env, start_after, limit)?,
         ),
@@ -287,8 +284,6 @@ fn query_get_base_token_id_cw721_id(
     Ok(tokens.unwrap())
 }
 
-*/
-
 use crate::state::{CW721_SHUFFLED_TOKEN_IDS, TOKEN_MINTED_BY};
 
 fn query_get_cw721_shuffled_token_ids(
@@ -334,6 +329,7 @@ fn query_get_token_minted_by(
 
     Ok(tokens.unwrap())
 }
+*/
 
 fn query_get_cw721_collection_info(
     deps: Deps,

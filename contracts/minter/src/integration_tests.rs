@@ -4912,6 +4912,7 @@ mod tests {
             )
             .unwrap();
 
+            /*
             let get_cw721_shuffled_token_ids: Vec<(u64, Vec<u32>)> = app
                 .wrap()
                 .query_wasm_smart(
@@ -4927,6 +4928,7 @@ mod tests {
                 "get_cw721_shuffled_token_ids {:?}",
                 get_cw721_shuffled_token_ids
             );
+            */
 
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
             app.update_block(|mut block| block.height += 1);
@@ -5014,6 +5016,7 @@ mod tests {
                 .unwrap_err();
             println!("final mint error {:?}", _res);
 
+            /*
             let get_token_minted_by: Vec<(String, Addr)> = app
                 .wrap()
                 .query_wasm_smart(
@@ -5026,7 +5029,7 @@ mod tests {
                 .unwrap();
 
             println!("get_token_minted_by {:?}", get_token_minted_by);
-
+*/
             let mints: Vec<AddressValMsg> = app
                 .wrap()
                 .query_wasm_smart(
