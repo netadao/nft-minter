@@ -296,16 +296,6 @@ pub fn instantiate(
             (1..=coll_info.token_supply).collect::<Vec<u32>>(),
             coll_info.id,
         )?;
-        /*
-        println!(
-            "execute_clean_claimed_tokens_from_shuffle point coll_info.id {:?}",
-            coll_info.id
-        );
-        println!(
-            "execute_clean_claimed_tokens_from_shuffle point shuffled_token_ids {:?}",
-            shuffled_token_ids
-        );
-        */
 
         CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, coll_info.id, &shuffled_token_ids)?;
     }
@@ -987,13 +977,6 @@ fn disburse_or_escrow_funds(
                         .mint_denom
                         .get_transfer_to_message(&royalty.addr.clone(), amt)?;
 
-                    /*
-                    let msg = BankMsg::Send {
-                        to_address: royalty.addr.clone().into_string(),
-                        amount: vec![coin(u128::from(amt), config.mint_denom.clone())],
-                    };
-                    */
-
                     res = res.add_message(msg);
                 }
             }
@@ -1015,12 +998,6 @@ fn disburse_or_escrow_funds(
                     &primary_royalty_addr.unwrap(),
                     remaining_mint_amount,
                 )?;
-                /*
-                let msg = BankMsg::Send {
-                    to_address: primary_royalty_addr.unwrap().into_string(),
-                    amount: vec![coin(u128::from(remaining_mint_amount), config.mint_denom)],
-                };
-                */
 
                 res = res.add_message(msg);
             }
@@ -1319,11 +1296,6 @@ fn execute_disburse_funds(
         return Err(ContractError::Unauthorized {});
     }
 
-    /*
-    let contract_balance: Coin = deps
-        .querier
-        .query_balance(&env.contract.address, config.mint_denom.clone())?;
-    */
     let mut remaining_balance: Uint128 = config
         .mint_denom
         .query_balance(&deps.querier, &env.contract.address)
@@ -1349,13 +1321,6 @@ fn execute_disburse_funds(
                     .get_transfer_to_message(&addr_bal.addr.clone(), addr_bal.balance)
                     .unwrap(),
             );
-            /*BankMsg::Send {
-                to_address: addr_bal.addr.clone().into_string(),
-                amount: vec![coin(
-                    u128::from(addr_bal.balance),
-                    config.mint_denom.clone(),
-                )],
-            });*/
 
             remaining_balance -= addr_bal.balance;
             BANK_BALANCES.save(deps.storage, addr_bal.addr, &Uint128::zero())?;

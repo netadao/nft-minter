@@ -217,44 +217,6 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-
-    /*
-    /// TODO: REMOVE, TESTING ONLY
-    GetShuffledTokenIds {
-        /// token_id
-        start_after: Option<u32>,
-        limit: Option<u32>,
-    },
-    GetTokenIndices {
-        /// token_id
-        start_after: Option<u32>,
-        limit: Option<u32>,
-    },
-    GetShuffledTokenPosition {
-        /// token_id
-        start_after: Option<u32>,
-        limit: Option<u32>,
-    },
-    GetCw721IdBaseTokenIds {
-        /// token_id
-        start_after: Option<String>,
-        limit: Option<u32>,
-    },
-    GetBaseTokenIdCw721Id {
-        /// token_id
-        start_after: Option<u32>,
-        limit: Option<u32>,
-    },
-    GetCw721ShuffledTokenIds {
-        /// token_id
-        start_after: Option<u64>,
-        limit: Option<u32>,
-    },
-    GetTokenMintedBy {
-        start_after: Option<String>,
-        limit: Option<u32>,
-    },
-    */
     GetCw721CollectionInfo {
         /// token_id
         start_after: Option<u64>,

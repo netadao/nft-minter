@@ -145,14 +145,6 @@ impl From<ParseError> for ContractError {
     }
 }
 
-/*
-impl From<ParseReplyError> for ContractError {
-    fn from(err: ParseReplyError) -> ContractError {
-        ContractError::ContractInstantiateError { contract, error: err }
-    }
-}
-*/
-
 impl From<ContractError> for Cw721ContractError {
     fn from(err: ContractError) -> Cw721ContractError {
         match err {
