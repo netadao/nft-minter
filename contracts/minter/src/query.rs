@@ -43,6 +43,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &query_get_cw721_shuffled_token_ids(deps, env, start_after, limit)?,
         ),
         */
+        QueryMsg::GetCw721ShuffledTokenIds { start_after, limit } => to_binary(
+            &query_get_cw721_shuffled_token_ids(deps, env, start_after, limit)?,
+        ),
+        QueryMsg::GetTokenMintedBy { start_after, limit } => {
+            to_binary(&query_get_token_minted_by(deps, env, start_after, limit)?)
+        }
         QueryMsg::GetCw721CollectionInfo { start_after, limit } => to_binary(
             &query_get_cw721_collection_info(deps, env, start_after, limit)?,
         ),
@@ -281,6 +287,10 @@ fn query_get_base_token_id_cw721_id(
     Ok(tokens.unwrap())
 }
 
+*/
+
+use crate::state::{CW721_SHUFFLED_TOKEN_IDS, TOKEN_MINTED_BY};
+
 fn query_get_cw721_shuffled_token_ids(
     deps: Deps,
     _env: Env,
@@ -295,14 +305,35 @@ fn query_get_cw721_shuffled_token_ids(
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            let (token_id, position) = item?;
-            Ok((token_id, position))
+            let (collection_id, token_ids) = item?;
+            Ok((collection_id, token_ids))
         })
-        .collect::<StdResult<Vec<_>>>();
+        .collect::<StdResult<Vec<(u64, Vec<u32>)>>>();
 
     Ok(tokens.unwrap())
 }
-*/
+
+fn query_get_token_minted_by(
+    deps: Deps,
+    _env: Env,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<Vec<(String, Addr)>> {
+    let start = start_after.map(Bound::exclusive);
+
+    let limit = limit.unwrap_or(100).min(100) as usize;
+
+    let tokens = TOKEN_MINTED_BY
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (coll_token_id, addr) = item?;
+            Ok((coll_token_id, addr))
+        })
+        .collect::<StdResult<Vec<(String, Addr)>>>();
+
+    Ok(tokens.unwrap())
+}
 
 fn query_get_cw721_collection_info(
     deps: Deps,

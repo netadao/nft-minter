@@ -2,7 +2,8 @@
 mod tests {
     use crate::helpers::CwTemplateContract;
     use crate::msg::{
-        AddressPromisedTokensResponse, AddressValMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
+        AddressPromisedTokensResponse, AddressTokenMsg, AddressValMsg, ExecuteMsg, InstantiateMsg,
+        QueryMsg, TokenMsg,
     };
     use crate::state::Config;
     use cosmwasm_std::{Addr, Coin, Empty, Timestamp, Uint128};
@@ -300,18 +301,27 @@ mod tests {
         fn add_promised_token_ids() {
             let (mut app, cw_template_contract) = proper_instantiate();
 
-            let promised_tokens_arr: Vec<AddressValMsg> = vec![
-                AddressValMsg {
+            let promised_tokens_arr: Vec<AddressTokenMsg> = vec![
+                AddressTokenMsg {
                     address: USER.to_owned(),
-                    value: 5,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 5,
+                    },
                 },
-                AddressValMsg {
+                AddressTokenMsg {
                     address: USER.to_owned(),
-                    value: 7,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 7,
+                    },
                 },
-                AddressValMsg {
-                    address: USER1.to_owned(),
-                    value: 1,
+                AddressTokenMsg {
+                    address: USER.to_owned(),
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 1,
+                    },
                 },
             ];
 
@@ -346,7 +356,7 @@ mod tests {
 
             println!("{:?}", promised_tokens_response);
 
-            let get_assigned_token_ids: Vec<u32> = app
+            let get_assigned_token_ids: Vec<TokenMsg> = app
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
@@ -364,22 +374,34 @@ mod tests {
         fn remove_promised_token_ids_by_address() {
             let (mut app, cw_template_contract) = proper_instantiate();
 
-            let promised_tokens_arr: Vec<AddressValMsg> = vec![
-                AddressValMsg {
+            let promised_tokens_arr: Vec<AddressTokenMsg> = vec![
+                AddressTokenMsg {
                     address: USER.to_owned(),
-                    value: 5,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 5,
+                    },
                 },
-                AddressValMsg {
+                AddressTokenMsg {
                     address: USER.to_owned(),
-                    value: 7,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 7,
+                    },
                 },
-                AddressValMsg {
-                    address: USER1.to_owned(),
-                    value: 1,
+                AddressTokenMsg {
+                    address: USER.to_owned(),
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 1,
+                    },
                 },
-                AddressValMsg {
+                AddressTokenMsg {
                     address: ADMIN.to_owned(),
-                    value: 2,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 2,
+                    },
                 },
             ];
 
@@ -405,7 +427,7 @@ mod tests {
 
             println!("promised_tokens_response {:?}", promised_tokens_response);
 
-            let get_assigned_token_ids: Vec<u32> = app
+            let get_assigned_token_ids: Vec<TokenMsg> = app
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
@@ -418,7 +440,27 @@ mod tests {
 
             println!("get_assigned_token_ids {:?}", get_assigned_token_ids);
 
-            assert_eq!(get_assigned_token_ids, vec![1, 2, 5, 7]);
+            assert_eq!(
+                get_assigned_token_ids,
+                vec![
+                    TokenMsg {
+                        collection_id: 1,
+                        token_id: 1
+                    },
+                    TokenMsg {
+                        collection_id: 1,
+                        token_id: 2
+                    },
+                    TokenMsg {
+                        collection_id: 1,
+                        token_id: 5
+                    },
+                    TokenMsg {
+                        collection_id: 1,
+                        token_id: 7
+                    }
+                ]
+            );
 
             let addresses: Vec<String> = vec![USER.to_owned()];
 
@@ -440,7 +482,7 @@ mod tests {
             )
             .unwrap();
 
-            let get_assigned_token_ids: Vec<u32> = app
+            let get_assigned_token_ids: Vec<TokenMsg> = app
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
@@ -453,25 +495,40 @@ mod tests {
 
             println!("get_assigned_token_ids {:?}", get_assigned_token_ids);
 
-            assert_eq!(get_assigned_token_ids, vec![1, 2]);
+            assert_eq!(
+                get_assigned_token_ids,
+                vec![TokenMsg {
+                    collection_id: 1,
+                    token_id: 2,
+                }]
+            );
         }
 
         #[test]
         fn remove_promised_token_ids_by_id() {
             let (mut app, cw_template_contract) = proper_instantiate();
 
-            let promised_tokens_arr: Vec<AddressValMsg> = vec![
-                AddressValMsg {
+            let promised_tokens_arr: Vec<AddressTokenMsg> = vec![
+                AddressTokenMsg {
                     address: USER.to_owned(),
-                    value: 5,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 5,
+                    },
                 },
-                AddressValMsg {
+                AddressTokenMsg {
                     address: USER.to_owned(),
-                    value: 7,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 7,
+                    },
                 },
-                AddressValMsg {
+                AddressTokenMsg {
                     address: USER1.to_owned(),
-                    value: 1,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 1,
+                    },
                 },
             ];
 
@@ -497,7 +554,7 @@ mod tests {
 
             println!("promised_tokens_response {:?}", promised_tokens_response);
 
-            let get_assigned_token_ids: Vec<u32> = app
+            let get_assigned_token_ids: Vec<TokenMsg> = app
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
@@ -510,9 +567,34 @@ mod tests {
 
             println!("get_assigned_token_ids {:?}", get_assigned_token_ids);
 
-            assert_eq!(get_assigned_token_ids, vec![1, 5, 7]);
+            assert_eq!(
+                get_assigned_token_ids,
+                vec![
+                    TokenMsg {
+                        collection_id: 1,
+                        token_id: 1,
+                    },
+                    TokenMsg {
+                        collection_id: 1,
+                        token_id: 5,
+                    },
+                    TokenMsg {
+                        collection_id: 1,
+                        token_id: 7,
+                    }
+                ]
+            );
 
-            let remove_token_ids: Vec<u32> = vec![5];
+            let remove_token_ids: Vec<TokenMsg> = vec![
+                TokenMsg {
+                    collection_id: 1,
+                    token_id: 1,
+                },
+                TokenMsg {
+                    collection_id: 1,
+                    token_id: 5,
+                },
+            ];
 
             // unauthorized
             app.execute_contract(
@@ -532,7 +614,7 @@ mod tests {
             )
             .unwrap();
 
-            let get_assigned_token_ids: Vec<u32> = app
+            let get_assigned_token_ids: Vec<TokenMsg> = app
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
@@ -545,25 +627,40 @@ mod tests {
 
             println!("get_assigned_token_ids {:?}", get_assigned_token_ids);
 
-            assert_eq!(get_assigned_token_ids, vec![1, 7]);
+            assert_eq!(
+                get_assigned_token_ids,
+                vec![TokenMsg {
+                    collection_id: 1,
+                    token_id: 7,
+                }]
+            );
         }
 
         #[test]
         fn mark_token_id_claimed() {
             let (mut app, cw_template_contract) = proper_instantiate();
 
-            let promised_tokens_arr: Vec<AddressValMsg> = vec![
-                AddressValMsg {
+            let promised_tokens_arr: Vec<AddressTokenMsg> = vec![
+                AddressTokenMsg {
                     address: USER.to_owned(),
-                    value: 5,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 5,
+                    },
                 },
-                AddressValMsg {
+                AddressTokenMsg {
                     address: USER.to_owned(),
-                    value: 7,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 7,
+                    },
                 },
-                AddressValMsg {
+                AddressTokenMsg {
                     address: USER1.to_owned(),
-                    value: 1,
+                    token: TokenMsg {
+                        collection_id: 1,
+                        token_id: 1,
+                    },
                 },
             ];
 
@@ -598,7 +695,7 @@ mod tests {
 
             println!("{:?}", promised_tokens_response);
 
-            let get_assigned_token_ids: Vec<u32> = app
+            let get_assigned_token_ids: Vec<TokenMsg> = app
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
@@ -611,11 +708,19 @@ mod tests {
 
             println!("get_assigned_token_ids {:?}", get_assigned_token_ids);
 
+            let claim_msg: AddressTokenMsg = AddressTokenMsg {
+                address: USER.to_owned(),
+                token: TokenMsg {
+                    collection_id: 1,
+                    token_id: 5,
+                },
+            };
+
             // unauthorized
             app.execute_contract(
                 Addr::unchecked(USER),
                 cw_template_contract.addr(),
-                &ExecuteMsg::MarkTokenIDClaimed(USER.to_owned(), 5),
+                &ExecuteMsg::MarkTokenIDClaimed(claim_msg.clone()),
                 &[],
             )
             .unwrap_err();
@@ -624,12 +729,12 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::MarkTokenIDClaimed(USER.to_owned(), 5),
+                &ExecuteMsg::MarkTokenIDClaimed(claim_msg),
                 &[],
             )
             .unwrap();
 
-            let claimed_token_ids: Vec<AddressValMsg> = app
+            let claimed_token_ids: Vec<AddressTokenMsg> = app
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
@@ -643,7 +748,13 @@ mod tests {
             println!("get_assigned_token_ids {:?}", claimed_token_ids);
 
             assert_eq!(claimed_token_ids[0].address, USER.to_owned());
-            assert_eq!(claimed_token_ids[0].value, 5);
+            assert_eq!(
+                claimed_token_ids[0].token,
+                TokenMsg {
+                    collection_id: 1,
+                    token_id: 5
+                }
+            );
         }
     }
 

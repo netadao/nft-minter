@@ -10,6 +10,7 @@ mod tests {
         coin, coins, to_binary, Addr, Coin, CosmosMsg, Empty, Timestamp, Uint128, WasmMsg,
     };
 
+    use cw_denom::UncheckedDenom;
     use cw_multi_test::{App, AppBuilder, BankSudo, Contract, ContractWrapper, Executor, SudoMsg};
     use prost::Message;
 
@@ -19,9 +20,15 @@ mod tests {
     };
 
     use airdropper::{
-        msg::AddressPromisedTokensResponse, msg::AddressValMsg as AD_AddressValMsg,
-        msg::ExecuteMsg as AirdropperExecuteMsg, msg::InstantiateMsg as ADInstantiateMsg,
-        msg::QueryMsg as AirdropperQueryMsg, state::Config as AirdropperConfig,
+        msg::AddressPromisedTokensResponse,
+        msg::ExecuteMsg as AirdropperExecuteMsg,
+        msg::InstantiateMsg as ADInstantiateMsg,
+        msg::QueryMsg as AirdropperQueryMsg,
+        msg::{
+            AddressTokenMsg as AD_AddressTokenMsg, AddressValMsg as AD_AddressValMsg,
+            TokenMsg as AD_TokenMsg,
+        },
+        state::Config as AirdropperConfig,
     };
 
     // Type for replies to contract instantiate messes
@@ -100,6 +107,10 @@ mod tests {
     const MAX_PER_ADDRESS_MINT: u32 = 4;
     //const MAX_TOKEN_SUPPLY: u32 = 5;
 
+    fn unchecked_denom() -> UncheckedDenom {
+        UncheckedDenom::Native(NATIVE_DENOM.to_string())
+    }
+
     fn mock_app() -> App {
         AppBuilder::new().build(|router, _, storage| {
             router
@@ -119,8 +130,9 @@ mod tests {
     fn proper_instantiate(
         init_airdropper: bool,
         init_whitelist: bool,
-        multiple_collections: bool,
         bundle: bool,
+        multiple_collection_count: Option<u32>,
+        token_supply: Option<u32>,
     ) -> (App, CwTemplateContract) {
         let mut app = mock_app();
         let cw_template_id = app.store_code(contract_template());
@@ -195,18 +207,24 @@ mod tests {
             name: "TESTNFTPROJECT".to_string(),
             symbol: "TESTNFT".to_string(),
             base_token_uri: "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
-            token_supply: 5,
+            token_supply: token_supply.unwrap_or(5),
             secondary_metadata_uri: Some(
                 "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
             ),
         }];
 
-        if multiple_collections {
+        for id in 2u32..=multiple_collection_count.unwrap_or(0) {
+            let mut _token_supply = token_supply.unwrap_or(5);
+
+            if id == 3 {
+                _token_supply = 6;
+            }
+
             coll_info_msgs.push(CollectionInfoMsg {
-                name: "TESTNFTPROJECT2".to_string(),
-                symbol: "TESTNFT2".to_string(),
+                name: format!("TESTNFTPROJECT{:?}", id),
+                symbol: format!("TESTNFT{:?}", id),
                 base_token_uri: "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
-                token_supply: 5,
+                token_supply: _token_supply,
                 secondary_metadata_uri: Some(
                     "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
                 ),
@@ -221,17 +239,16 @@ mod tests {
                 max_per_address_mint: MAX_PER_ADDRESS_MINT,
                 mint_price: Uint128::from(MINT_PRICE),
                 bundle_mint_price: Uint128::from(BUNDLE_MINT_PRICE),
-                mint_denom: NATIVE_DENOM.to_owned(),
+                mint_denom: unchecked_denom(),
                 escrow_funds: false,
-                max_per_address_bundle_mint: 1,
+                max_per_address_bundle_mint: 3000,
                 bundle_enabled: bundle,
             },
             whitelist_address: None,
             airdrop_address: None,
-
+            fee_collection_address: None,
             token_code_id: cw721_id,
             name: "TESTNFTPROJECT".to_string(),
-
             airdropper_instantiate_info: airdropper_module_instantiate,
             whitelist_instantiate_info: whitelist_module_instantiate,
             extension: collection_info,
@@ -285,21 +302,21 @@ mod tests {
         app.sudo(SudoMsg::Bank({
             BankSudo::Mint {
                 to_address: USER25.to_string(),
-                amount: coins(25_000_000, NATIVE_DENOM),
+                amount: coins(2_500_000_000_000, NATIVE_DENOM),
             }
         }))
         .ok();
 
-        let msg: ExecuteMsg = ExecuteMsg::FirstTimeShuffle {};
-
-            let _res = app
-                .execute_contract(
-                    Addr::unchecked(ADMIN),
-                    cw_template_contract_addr.clone(),
-                    &msg,
-                    &[],
-                )
-                .unwrap();
+        let _res = app
+            .instantiate_contract(
+                cw_template_id,
+                Addr::unchecked(ADMIN),
+                &msg,
+                &[],
+                "init".to_string(),
+                None,
+            )
+            .unwrap();
 
         let cw_template_contract = CwTemplateContract(
             cw_template_contract_addr,
@@ -415,17 +432,16 @@ mod tests {
                 max_per_address_mint: MAX_PER_ADDRESS_MINT,
                 mint_price: Uint128::from(MINT_PRICE),
                 bundle_mint_price: Uint128::from(BUNDLE_MINT_PRICE),
-                mint_denom: NATIVE_DENOM.to_owned(),
+                mint_denom: unchecked_denom(),
                 escrow_funds: false,
                 max_per_address_bundle_mint: 1,
                 bundle_enabled: bundle,
             },
             whitelist_address: None,
             airdrop_address: None,
-
+            fee_collection_address: None,
             token_code_id: cw721_id,
             name: "TESTNFTPROJECT".to_string(),
-
             airdropper_instantiate_info: airdropper_module_instantiate,
             whitelist_instantiate_info: whitelist_module_instantiate,
             extension: collection_info,
@@ -501,7 +517,7 @@ mod tests {
 
         #[test]
         fn proper_init() {
-            let (app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             println!(
                 "cw_template_contract.addr() {:?}",
@@ -583,7 +599,7 @@ mod tests {
 
         #[test]
         fn proper_init_multiple_cw721() {
-            let (app, cw_template_contract) = proper_instantiate(true, true, true, false);
+            let (app, cw_template_contract) = proper_instantiate(true, true, false, Some(2), None);
 
             println!(
                 "cw_template_contract.addr() {:?}",
@@ -720,7 +736,7 @@ mod tests {
 
         #[test]
         fn test_update_maintainer() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -740,7 +756,7 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: config.mint_denom,
+                mint_denom: unchecked_denom(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
             };
@@ -872,7 +888,7 @@ mod tests {
 
         #[test]
         fn test_shuffle_order() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
             /*
                         let shuffled_token_ids: TokensResponse = app
                             .wrap()
@@ -922,7 +938,7 @@ mod tests {
 
         #[test]
         fn test_shuffle_order_2() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             /*
                         let shuffled_token_ids: TokensResponse = app
@@ -1014,35 +1030,30 @@ mod tests {
 
         #[test]
         fn test_clean_shuffle() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
                 .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
                 .unwrap();
 
-            let msg: ExecuteMsg = ExecuteMsg::FirstTimeShuffle {};
-
-            let _res = app
-                .execute_contract(
-                    Addr::unchecked(ADMIN),
-                    cw_template_contract.addr(),
-                    &msg,
-                    &[],
-                )
-                .unwrap();
-
             app.execute_contract(
                 cw_template_contract.addr(),
                 config.airdropper_addr.unwrap(),
                 &AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
-                    AD_AddressValMsg {
+                    AD_AddressTokenMsg {
                         address: USER.to_owned(),
-                        value: 3,
+                        token: AD_TokenMsg {
+                            collection_id: 101,
+                            token_id: 2,
+                        },
                     },
-                    AD_AddressValMsg {
+                    AD_AddressTokenMsg {
                         address: USER2.to_owned(),
-                        value: 2,
+                        token: AD_TokenMsg {
+                            collection_id: 101,
+                            token_id: 3,
+                        },
                     },
                 ]),
                 &[],
@@ -1136,7 +1147,8 @@ mod tests {
 
         #[test]
         fn test_shuffle_order_multiple_collections() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, true, true);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, true, true, Some(2), None);
             /*
                         let shuffled_token_ids: TokensResponse = app
                             .wrap()
@@ -1178,7 +1190,7 @@ mod tests {
 
         #[test]
         fn reinit_airdropper_submodule() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -1245,7 +1257,7 @@ mod tests {
 
         #[test]
         fn reinit_whitelist_submodule() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -1320,7 +1332,7 @@ mod tests {
 
         #[test]
         fn verify_airdropper_init() {
-            let (app, cw_template_contract) = proper_instantiate(true, false, false, false);
+            let (app, cw_template_contract) = proper_instantiate(true, false, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -1343,7 +1355,8 @@ mod tests {
 
         #[test]
         fn ad_update_maintainer_address() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, false, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, false, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -1427,7 +1440,8 @@ mod tests {
 
         #[test]
         fn ad_update_start_time() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, false, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, false, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -1521,7 +1535,8 @@ mod tests {
 
         #[test]
         fn ad_update_end_time() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, false, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, false, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -1651,7 +1666,8 @@ mod tests {
 
         #[test]
         fn ad_add_remove_promised_token_ids() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, false, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, false, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -1667,9 +1683,12 @@ mod tests {
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
                         msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
-                            AD_AddressValMsg {
+                            AD_AddressTokenMsg {
                                 address: USER.to_owned(),
-                                value: 1,
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 1,
+                                },
                             },
                         ]))
                         .unwrap(),
@@ -1689,13 +1708,19 @@ mod tests {
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
                         msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
-                            AD_AddressValMsg {
+                            AD_AddressTokenMsg {
                                 address: USER.to_owned(),
-                                value: 1,
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 1,
+                                },
                             },
-                            AD_AddressValMsg {
+                            AD_AddressTokenMsg {
                                 address: USER2.to_owned(),
-                                value: 2,
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 2,
+                                },
                             },
                         ]))
                         .unwrap(),
@@ -1715,13 +1740,19 @@ mod tests {
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
                         msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
-                            AD_AddressValMsg {
+                            AD_AddressTokenMsg {
                                 address: USER3.to_owned(),
-                                value: 3,
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 3,
+                                },
                             },
-                            AD_AddressValMsg {
+                            AD_AddressTokenMsg {
                                 address: USER10.to_owned(),
-                                value: 5,
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 5,
+                                },
                             },
                         ]))
                         .unwrap(),
@@ -1748,19 +1779,31 @@ mod tests {
                 vec![
                     AddressPromisedTokensResponse {
                         address: USER.to_owned(),
-                        token_ids: vec![1]
+                        token_ids: vec![AD_TokenMsg {
+                            collection_id: 101,
+                            token_id: 1
+                        }]
                     },
                     AddressPromisedTokensResponse {
                         address: USER10.to_owned(),
-                        token_ids: vec![5]
+                        token_ids: vec![AD_TokenMsg {
+                            collection_id: 101,
+                            token_id: 5
+                        }]
                     },
                     AddressPromisedTokensResponse {
                         address: USER2.to_owned(),
-                        token_ids: vec![2]
+                        token_ids: vec![AD_TokenMsg {
+                            collection_id: 101,
+                            token_id: 2
+                        }]
                     },
                     AddressPromisedTokensResponse {
                         address: USER3.to_owned(),
-                        token_ids: vec![3]
+                        token_ids: vec![AD_TokenMsg {
+                            collection_id: 101,
+                            token_id: 3
+                        }]
                     },
                 ]
             );
@@ -1775,8 +1818,17 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::RemovePromisedTokenIDs(vec![1, 2]))
-                            .unwrap(),
+                        msg: to_binary(&AirdropperExecuteMsg::RemovePromisedTokenIDs(vec![
+                            AD_TokenMsg {
+                                collection_id: 101,
+                                token_id: 1,
+                            },
+                            AD_TokenMsg {
+                                collection_id: 101,
+                                token_id: 2,
+                            },
+                        ]))
+                        .unwrap(),
                         funds: vec![],
                     }),
                 ),
@@ -1792,8 +1844,17 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::RemovePromisedTokenIDs(vec![1, 2]))
-                            .unwrap(),
+                        msg: to_binary(&AirdropperExecuteMsg::RemovePromisedTokenIDs(vec![
+                            AD_TokenMsg {
+                                collection_id: 101,
+                                token_id: 1,
+                            },
+                            AD_TokenMsg {
+                                collection_id: 101,
+                                token_id: 2,
+                            },
+                        ]))
+                        .unwrap(),
                         funds: vec![],
                     }),
                 ),
@@ -1817,11 +1878,17 @@ mod tests {
                 vec![
                     AddressPromisedTokensResponse {
                         address: USER10.to_owned(),
-                        token_ids: vec![5]
+                        token_ids: vec![AD_TokenMsg {
+                            collection_id: 101,
+                            token_id: 5,
+                        }]
                     },
                     AddressPromisedTokensResponse {
                         address: USER3.to_owned(),
-                        token_ids: vec![3]
+                        token_ids: vec![AD_TokenMsg {
+                            collection_id: 101,
+                            token_id: 3,
+                        }]
                     },
                 ]
             );
@@ -1860,14 +1927,18 @@ mod tests {
                 res,
                 vec![AddressPromisedTokensResponse {
                     address: USER3.to_owned(),
-                    token_ids: vec![3]
+                    token_ids: vec![AD_TokenMsg {
+                        collection_id: 101,
+                        token_id: 3,
+                    }]
                 },]
             );
         }
 
         #[test]
         fn ad_add_remove_promised_mints() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, false, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, false, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2009,7 +2080,8 @@ mod tests {
 
         #[test]
         fn ad_mark_token_id_claimed() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, false, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, false, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2025,13 +2097,19 @@ mod tests {
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
                         msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
-                            AD_AddressValMsg {
+                            AD_AddressTokenMsg {
                                 address: USER.to_owned(),
-                                value: 1,
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 1,
+                                },
                             },
-                            AD_AddressValMsg {
+                            AD_AddressTokenMsg {
                                 address: USER2.to_owned(),
-                                value: 2,
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 2,
+                                },
                             },
                         ]))
                         .unwrap(),
@@ -2051,8 +2129,13 @@ mod tests {
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
                         msg: to_binary(&AirdropperExecuteMsg::MarkTokenIDClaimed(
-                            USER.to_owned(),
-                            1,
+                            AD_AddressTokenMsg {
+                                address: USER.to_owned(),
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 1,
+                                },
+                            },
                         ))
                         .unwrap(),
                         funds: vec![],
@@ -2071,8 +2154,13 @@ mod tests {
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
                         msg: to_binary(&AirdropperExecuteMsg::MarkTokenIDClaimed(
-                            USER.to_owned(),
-                            1,
+                            AD_AddressTokenMsg {
+                                address: USER.to_owned(),
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 1,
+                                },
+                            },
                         ))
                         .unwrap(),
                         funds: vec![],
@@ -2082,7 +2170,7 @@ mod tests {
             )
             .unwrap();
 
-            let res: Vec<u32> = app
+            let res: Vec<AD_TokenMsg> = app
                 .wrap()
                 .query_wasm_smart(
                     config.airdropper_addr.clone().unwrap(),
@@ -2093,7 +2181,19 @@ mod tests {
                 )
                 .unwrap();
 
-            assert_eq!(res, vec![1, 2]);
+            assert_eq!(
+                res,
+                vec![
+                    AD_TokenMsg {
+                        collection_id: 101,
+                        token_id: 1
+                    },
+                    AD_TokenMsg {
+                        collection_id: 101,
+                        token_id: 2
+                    }
+                ]
+            );
 
             app.execute_contract(
                 Addr::unchecked(MAINTAINER_ADDR.to_owned()),
@@ -2103,8 +2203,13 @@ mod tests {
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
                         msg: to_binary(&AirdropperExecuteMsg::MarkTokenIDClaimed(
-                            USER.to_owned(),
-                            2,
+                            AD_AddressTokenMsg {
+                                address: USER.to_owned(),
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 2,
+                                },
+                            },
                         ))
                         .unwrap(),
                         funds: vec![],
@@ -2114,7 +2219,7 @@ mod tests {
             )
             .unwrap_err();
 
-            let get_claimed_token_ids: Vec<AD_AddressValMsg> = app
+            let get_claimed_token_ids: Vec<AD_AddressTokenMsg> = app
                 .wrap()
                 .query_wasm_smart(
                     config.airdropper_addr.unwrap(),
@@ -2127,16 +2232,20 @@ mod tests {
 
             assert_eq!(
                 get_claimed_token_ids,
-                vec![AD_AddressValMsg {
+                vec![AD_AddressTokenMsg {
                     address: USER.to_owned(),
-                    value: 1,
+                    token: AD_TokenMsg {
+                        collection_id: 101,
+                        token_id: 1,
+                    }
                 }]
             );
         }
 
         #[test]
         fn ad_increment_address_promised_mint_count() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, false, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, false, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2307,7 +2416,7 @@ mod tests {
 
         #[test]
         fn verify_whitelist_init() {
-            let (app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2330,7 +2439,7 @@ mod tests {
 
         #[test]
         fn update_maintainer_address() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2368,7 +2477,7 @@ mod tests {
 
         #[test]
         fn update_whitelist() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2407,7 +2516,7 @@ mod tests {
 
         #[test]
         fn execute_whitelist_mint_not_in_progress() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2431,7 +2540,7 @@ mod tests {
 
         #[test]
         fn execute_whitelist_mint_not_on_list() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2460,7 +2569,7 @@ mod tests {
 
         #[test]
         fn execute_whitelist_mint_whitelist_ended() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2489,7 +2598,7 @@ mod tests {
 
         #[test]
         fn execute_whitelist_mints_not_in_progress() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2537,7 +2646,7 @@ mod tests {
 
         #[test]
         fn execute_whitelist_mints_not_on_whitelist() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2589,7 +2698,7 @@ mod tests {
 
         #[test]
         fn execute_whitelist_mints_success() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2705,7 +2814,7 @@ mod tests {
 
         #[test]
         fn execute_whitelist_mints_success_cleaned_out() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2822,7 +2931,7 @@ mod tests {
 
         #[test]
         fn execute_whitelist_mints_success_partial_whitelist_mint() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2965,7 +3074,7 @@ mod tests {
 
         #[test]
         fn execute_whitelist_mints_success_partial_whitelist_mint_escrow() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -2985,7 +3094,7 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: config.mint_denom.clone(),
+                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
             };
@@ -3135,21 +3244,21 @@ mod tests {
 
             let maintainer_balance: Coin = app
                 .wrap()
-                .query_balance(MAINTAINER_ADDR.to_owned(), config.mint_denom.clone())
+                .query_balance(MAINTAINER_ADDR.to_owned(), config.mint_denom.to_string())
                 .unwrap();
             println!("maintainer_balance {:?}", maintainer_balance);
             assert_eq!(maintainer_balance.amount, Uint128::zero());
 
             let admin_balance: Coin = app
                 .wrap()
-                .query_balance(ADMIN.to_owned(), config.mint_denom.clone())
+                .query_balance(ADMIN.to_owned(), config.mint_denom.to_string())
                 .unwrap();
             assert_eq!(admin_balance.amount, Uint128::from(10_000_000u128));
             println!("admin_balance {:?}", admin_balance);
 
             let contract_balance: Coin = app
                 .wrap()
-                .query_balance(&cw_template_contract.addr(), config.mint_denom.clone())
+                .query_balance(&cw_template_contract.addr(), config.mint_denom.to_string())
                 .unwrap();
             assert_eq!(contract_balance.amount, Uint128::from(6_000_000u128));
             println!("contract_balance {:?}", contract_balance);
@@ -3198,21 +3307,21 @@ mod tests {
 
             let maintainer_balance: Coin = app
                 .wrap()
-                .query_balance(MAINTAINER_ADDR.to_owned(), config.mint_denom.clone())
+                .query_balance(MAINTAINER_ADDR.to_owned(), config.mint_denom.to_string())
                 .unwrap();
             println!("maintainer_balance {:?}", maintainer_balance);
             assert_eq!(maintainer_balance.amount, Uint128::from(1_800_000u128));
 
             let admin_balance: Coin = app
                 .wrap()
-                .query_balance(ADMIN.to_owned(), config.mint_denom.clone())
+                .query_balance(ADMIN.to_owned(), config.mint_denom.to_string())
                 .unwrap();
             assert_eq!(admin_balance.amount, Uint128::from(14_200_000u128));
             println!("admin_balance {:?}", admin_balance);
 
             let contract_balance: Coin = app
                 .wrap()
-                .query_balance(&cw_template_contract.addr(), config.mint_denom)
+                .query_balance(&cw_template_contract.addr(), config.mint_denom.to_string())
                 .unwrap();
             assert_eq!(contract_balance.amount, Uint128::zero());
             println!("contract_balance {:?}", contract_balance);
@@ -3224,7 +3333,8 @@ mod tests {
 
         #[test]
         fn wl_update_max_whitelist_address_count() {
-            let (mut app, cw_template_contract) = proper_instantiate(false, true, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(false, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -3314,7 +3424,8 @@ mod tests {
 
         #[test]
         fn wl_update_max_per_address_mint() {
-            let (mut app, cw_template_contract) = proper_instantiate(false, true, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(false, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -3404,7 +3515,8 @@ mod tests {
 
         #[test]
         fn wl_update_mint_price() {
-            let (mut app, cw_template_contract) = proper_instantiate(false, true, false, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(false, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -3494,7 +3606,7 @@ mod tests {
 
         #[test]
         fn add_remove_update_whitelist_with_hook() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -3803,7 +3915,7 @@ mod tests {
 
         #[test]
         fn execute_public_mint_success() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -3853,7 +3965,7 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: config.mint_denom,
+                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
             };
@@ -4010,7 +4122,8 @@ mod tests {
 
         #[test]
         fn execute_public_mint_multiple_collections_success() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, true, false);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, true, false, Some(2), None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -4060,7 +4173,7 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: config.mint_denom,
+                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
             };
@@ -4224,7 +4337,7 @@ mod tests {
         // not enough tokens for user 1
         #[test]
         fn execute_public_mint_fail() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -4262,7 +4375,7 @@ mod tests {
         // user 2 cannot mint twice
         #[test]
         fn execute_public_mint_fail_2() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -4309,7 +4422,7 @@ mod tests {
         // user25 cannot mint as there are no more tokens left
         #[test]
         fn execute_public_mint_fail_3() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -4403,7 +4516,7 @@ mod tests {
         // user25 cannot mint over max
         #[test]
         fn execute_public_mint_fail_4() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, false);
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -4482,7 +4595,8 @@ mod tests {
 
         #[test]
         fn execute_public_mint_bundle_success() {
-            let (mut app, cw_template_contract) = proper_instantiate(true, true, true, true);
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, true, true, Some(2), None);
 
             let config: ConfigResponse = app
                 .wrap()
@@ -4622,17 +4736,6 @@ mod tests {
                 get_collection_current_supply
             );
 
-            let msg: ExecuteMsg = ExecuteMsg::FirstTimeShuffle {};
-
-            let _res = app
-                .execute_contract(
-                    Addr::unchecked(ADMIN),
-                    cw_template_contract.addr(),
-                    &msg,
-                    &[],
-                )
-                .unwrap();
-
             let msg = ExecuteMsg::MintBundle {};
 
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
@@ -4771,6 +4874,173 @@ mod tests {
 
             println!("{:?}", my_vec);
             //assert_eq!(5, 7);
+        }
+    }
+
+    mod bulk_tests {
+        use super::*;
+
+        #[test]
+        fn test_large_datasets() {
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, true, true, Some(3), Some(3000));
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            let mut msg: BaseInitMsg = BaseInitMsg {
+                maintainer_address: None,
+                start_time: config.start_time,
+                end_time: config.end_time,
+                max_per_address_mint: config.max_per_address_mint,
+                max_per_address_bundle_mint: config.max_per_address_bundle_mint,
+                mint_price: config.mint_price,
+                bundle_mint_price: config.bundle_mint_price,
+                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
+                escrow_funds: false,
+                bundle_enabled: config.bundle_enabled,
+            };
+
+            msg.max_per_address_mint = 40000;
+            app.execute_contract(
+                Addr::unchecked(ADMIN),
+                cw_template_contract.addr(),
+                &ExecuteMsg::UpdateConfig(msg),
+                &[],
+            )
+            .unwrap();
+
+            let get_cw721_shuffled_token_ids: Vec<(u64, Vec<u32>)> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetCw721ShuffledTokenIds {
+                        start_after: None,
+                        limit: Some(50),
+                    },
+                )
+                .unwrap();
+
+            println!(
+                "get_cw721_shuffled_token_ids {:?}",
+                get_cw721_shuffled_token_ids
+            );
+
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
+            app.update_block(|mut block| block.height += 1);
+
+            let msg = ExecuteMsg::MintBundle {};
+
+            for _ in 0u32..=5 {
+                let _res = app
+                    .execute_contract(
+                        Addr::unchecked(USER25),
+                        cw_template_contract.addr(),
+                        &msg,
+                        &[coin(5_000_000, NATIVE_DENOM)],
+                    )
+                    .unwrap();
+
+                app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
+                app.update_block(|mut block| block.height += 1);
+            }
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+            println!("config {:?}", config);
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(5_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            let per_collection_supplies: Vec<(u64, u32)> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetCollectionCurrentTokenSupply {
+                        start_after: None,
+                        limit: Some(50),
+                    },
+                )
+                .unwrap();
+
+            println!("per_collection_supplies {:?}", per_collection_supplies);
+
+            let msg = ExecuteMsg::Mint {};
+
+            for _ in 0u32..=5987 {
+                let _res = app
+                    .execute_contract(
+                        Addr::unchecked(USER25),
+                        cw_template_contract.addr(),
+                        &msg,
+                        &[coin(2_000_000, NATIVE_DENOM)],
+                    )
+                    .unwrap();
+
+                app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
+                app.update_block(|mut block| block.height += 1);
+            }
+
+            let per_collection_supplies: Vec<(u64, u32)> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetCollectionCurrentTokenSupply {
+                        start_after: None,
+                        limit: Some(50),
+                    },
+                )
+                .unwrap();
+
+            println!("per_collection_supplies {:?}", per_collection_supplies);
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+            println!("final mint error {:?}", _res);
+
+            let get_token_minted_by: Vec<(String, Addr)> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetTokenMintedBy {
+                        start_after: None,
+                        limit: Some(50),
+                    },
+                )
+                .unwrap();
+
+            println!("get_token_minted_by {:?}", get_token_minted_by);
+
+            let mints: Vec<AddressValMsg> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetAddressMints {
+                        start_after: None,
+                        limit: Some(50000),
+                    },
+                )
+                .unwrap();
+
+            println!("mints {:?}", mints);
+
+            //assert_ne!(1, 1);
         }
     }
 }

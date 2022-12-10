@@ -5,8 +5,8 @@ use cw_storage_plus::Bound;
 use cw_utils::maybe_addr;
 
 use crate::msg::{
-    AddressPromisedTokensResponse, AddressValMsg, CheckAirdropPromisedMintResponse,
-    CheckAirdropPromisedTokensResponse, QueryMsg,
+    AddressPromisedTokensResponse, AddressTokenMsg, AddressValMsg,
+    CheckAirdropPromisedMintResponse, CheckAirdropPromisedTokensResponse, QueryMsg, TokenMsg,
 };
 use crate::state::{
     ADDRESS_CLAIMED_PROMISED_MINTS, ADDRESS_CLAIMED_TOKEN_IDS, ADDRESS_PROMISED_MINTS,
@@ -62,11 +62,21 @@ fn query_get_address_promised_token_ids(
 
     let limit = limit.unwrap_or(100).min(100) as usize;
 
-    let data = ADDRESS_PROMISED_TOKEN_IDS
+    let data: Vec<AddressPromisedTokensResponse> = ADDRESS_PROMISED_TOKEN_IDS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            let (address, token_ids) = item?;
+            let (address, ids) = item?;
+            let token_ids: Vec<TokenMsg> = ids
+                .into_iter()
+                .map(|id| {
+                    Ok(TokenMsg {
+                        collection_id: id.0,
+                        token_id: id.1,
+                    })
+                })
+                .collect::<StdResult<Vec<TokenMsg>>>()?;
+
             Ok(AddressPromisedTokensResponse {
                 address: address.to_string(),
                 token_ids,
@@ -79,42 +89,48 @@ fn query_get_address_promised_token_ids(
 
 fn query_get_assigned_token_ids(
     deps: Deps,
-    start_after: Option<u32>,
+    start_after: Option<(u64, u32)>,
     limit: Option<u32>,
 ) -> StdResult<Binary> {
     let start = start_after.map(Bound::exclusive);
 
     let limit = limit.unwrap_or(100).min(100) as usize;
 
-    let token_ids: Vec<u32> = ASSIGNED_TOKEN_IDS
+    let token_ids: Vec<TokenMsg> = ASSIGNED_TOKEN_IDS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            let (token_id, _) = item?;
-            Ok(token_id)
+            let (token, _) = item?;
+            Ok(TokenMsg {
+                collection_id: token.0,
+                token_id: token.1,
+            })
         })
-        .collect::<StdResult<Vec<u32>>>()?;
+        .collect::<StdResult<Vec<TokenMsg>>>()?;
 
     to_binary(&token_ids)
 }
 
 fn query_get_assigned_token_ids_with_address(
     deps: Deps,
-    start_after: Option<u32>,
+    start_after: Option<(u64, u32)>,
     limit: Option<u32>,
 ) -> StdResult<Binary> {
     let start = start_after.map(Bound::exclusive);
 
     let limit = limit.unwrap_or(100).min(100) as usize;
 
-    let token_ids: Vec<AddressValMsg> = ASSIGNED_TOKEN_IDS
+    let token_ids: Vec<AddressTokenMsg> = ASSIGNED_TOKEN_IDS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
             let (token_id, address) = item?;
-            Ok(AddressValMsg {
+            Ok(AddressTokenMsg {
                 address: address.to_string(),
-                value: token_id,
+                token: TokenMsg {
+                    collection_id: token_id.0,
+                    token_id: token_id.1,
+                },
             })
         })
         .collect::<StdResult<Vec<_>>>()?;
@@ -124,14 +140,14 @@ fn query_get_assigned_token_ids_with_address(
 
 fn query_get_claimed_token_ids(
     deps: Deps,
-    start_after: Option<u32>,
+    start_after: Option<(u64, u32)>,
     limit: Option<u32>,
 ) -> StdResult<Binary> {
     let start = start_after.map(Bound::exclusive);
 
     let limit = limit.unwrap_or(100).min(100) as usize;
 
-    let data: Vec<u32> = CLAIMED_TOKEN_IDS
+    let data: Vec<(u64, u32)> = CLAIMED_TOKEN_IDS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
@@ -145,21 +161,24 @@ fn query_get_claimed_token_ids(
 
 fn query_get_claimed_token_ids_with_address(
     deps: Deps,
-    start_after: Option<u32>,
+    start_after: Option<(u64, u32)>,
     limit: Option<u32>,
 ) -> StdResult<Binary> {
     let start = start_after.map(Bound::exclusive);
 
     let limit = limit.unwrap_or(100).min(100) as usize;
 
-    let data: Vec<AddressValMsg> = CLAIMED_TOKEN_IDS
+    let data: Vec<AddressTokenMsg> = CLAIMED_TOKEN_IDS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
             let (token_id, address) = item?;
-            Ok(AddressValMsg {
+            Ok(AddressTokenMsg {
                 address: address.to_string(),
-                value: token_id,
+                token: TokenMsg {
+                    collection_id: token_id.0,
+                    token_id: token_id.1,
+                },
             })
         })
         .collect::<StdResult<Vec<_>>>()?;
@@ -264,13 +283,29 @@ fn query_check_address_promised_tokens(
 
     let airdrop_mint_in_progress = config.start_time <= env.block.time && !airdrop_mint_is_closed;
 
-    let address_promised_token_ids = (ADDRESS_PROMISED_TOKEN_IDS
+    let address_promised_token_ids: Vec<TokenMsg> = (ADDRESS_PROMISED_TOKEN_IDS
         .may_load(deps.storage, minter_addr.clone())?)
-    .unwrap_or_default();
+    .unwrap_or_default()
+    .into_iter()
+    .map(|id| {
+        Ok(TokenMsg {
+            collection_id: id.0,
+            token_id: id.1,
+        })
+    })
+    .collect::<StdResult<Vec<TokenMsg>>>()?;
 
-    let address_claimed_token_ids = (ADDRESS_CLAIMED_TOKEN_IDS
+    let address_claimed_token_ids: Vec<TokenMsg> = (ADDRESS_CLAIMED_TOKEN_IDS
         .may_load(deps.storage, minter_addr.clone())?)
-    .unwrap_or_default();
+    .unwrap_or_default()
+    .into_iter()
+    .map(|id| {
+        Ok(TokenMsg {
+            collection_id: id.0,
+            token_id: id.1,
+        })
+    })
+    .collect::<StdResult<Vec<TokenMsg>>>()?;
 
     to_binary(&CheckAirdropPromisedTokensResponse {
         minter_addr,
