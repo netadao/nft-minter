@@ -23,26 +23,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetEscrowBalances { start_after, limit } => {
             query_get_escrow_balances(deps, env, start_after, limit)
         }
-        /*
-        QueryMsg::GetShuffledTokenIds { start_after, limit } => to_binary(
-            &query_get_shuffled_token_ids(deps, env, start_after, limit)?,
-        ),
-        QueryMsg::GetTokenIndices { start_after, limit } => {
-            to_binary(&query_get_token_indices(deps, env, start_after, limit)?)
-        }
-        QueryMsg::GetShuffledTokenPosition { start_after, limit } => to_binary(
-            &query_get_shuffled_token_position(deps, env, start_after, limit)?,
-        ),
-        QueryMsg::GetCw721IdBaseTokenIds { start_after, limit } => to_binary(
-            &query_get_cw721_id_base_token_ids(deps, env, start_after, limit)?,
-        ),
-        QueryMsg::GetBaseTokenIdCw721Id { start_after, limit } => to_binary(
-            &query_get_base_token_id_cw721_id(deps, env, start_after, limit)?,
-        ),
-        QueryMsg::GetCw721ShuffledTokenIds { start_after, limit } => to_binary(
-            &query_get_cw721_shuffled_token_ids(deps, env, start_after, limit)?,
-        ),
-        */
         QueryMsg::GetCw721CollectionInfo { start_after, limit } => to_binary(
             &query_get_cw721_collection_info(deps, env, start_after, limit)?,
         ),
@@ -52,7 +32,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetCollectionCurrentTokenSupply { start_after, limit } => to_binary(
             &query_get_collection_current_supply(deps, env, start_after, limit)?,
         ),
-
         QueryMsg::GetRemainingTokens {} => query_get_remaining_tokens(deps, env),
         QueryMsg::GetCW721Addrs {} => query_get_cw721_addrs(deps, env),
     }
@@ -167,142 +146,6 @@ fn query_get_cw721_addrs(deps: Deps, _env: Env) -> StdResult<Binary> {
 
     to_binary(&addrs.unwrap())
 }
-
-/*
-use crate::state::{
-    BASE_TOKEN_ID_CW721_ID, BASE_TOKEN_ID_POSITIONS, CW721_ID_BASE_TOKEN_ID,
-    CW721_SHUFFLED_TOKEN_IDS, SHUFFLED_BASE_TOKEN_IDS,
-};
-
-fn query_get_token_indices(
-    deps: Deps,
-    _env: Env,
-    start_after: Option<u32>,
-    limit: Option<u32>,
-) -> StdResult<Vec<(u32, u32)>> {
-    let start = start_after.map(Bound::exclusive);
-
-    let limit = limit.unwrap_or(100).min(100) as usize;
-
-    let tokens = BASE_TOKEN_ID_POSITIONS
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| {
-            let (token_id, position) = item?;
-            Ok((token_id, position))
-        })
-        .collect::<StdResult<Vec<_>>>();
-
-    Ok(tokens.unwrap())
-}
-
-fn query_get_shuffled_token_position(
-    deps: Deps,
-    _env: Env,
-    start_after: Option<u32>,
-    limit: Option<u32>,
-) -> StdResult<Vec<(u32, u32)>> {
-    let start = start_after.map(Bound::exclusive);
-
-    let limit = limit.unwrap_or(100).min(100) as usize;
-
-    let tokens = SHUFFLED_BASE_TOKEN_IDS
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| {
-            let (token_id, position) = item?;
-            Ok((token_id, position))
-        })
-        .collect::<StdResult<Vec<_>>>();
-
-    Ok(tokens.unwrap())
-}
-
-fn query_get_shuffled_token_ids(
-    deps: Deps,
-    _env: Env,
-    start_after: Option<u32>,
-    limit: Option<u32>,
-) -> StdResult<Vec<u32>> {
-    let start = start_after.map(Bound::exclusive);
-
-    let limit = limit.unwrap_or(100).min(100) as usize;
-
-    let tokens = SHUFFLED_BASE_TOKEN_IDS
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| item.unwrap().1)
-        .collect::<Vec<u32>>();
-
-    Ok(tokens)
-}
-
-fn query_get_cw721_id_base_token_ids(
-    deps: Deps,
-    _env: Env,
-    start_after: Option<String>,
-    limit: Option<u32>,
-) -> StdResult<Vec<(String, u32)>> {
-    let start = start_after.map(Bound::exclusive);
-
-    let limit = limit.unwrap_or(100).min(100) as usize;
-
-    let tokens = CW721_ID_BASE_TOKEN_ID
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| {
-            let (token_id, position) = item?;
-            Ok((token_id, position))
-        })
-        .collect::<StdResult<Vec<_>>>();
-
-    Ok(tokens.unwrap())
-}
-
-fn query_get_base_token_id_cw721_id(
-    deps: Deps,
-    _env: Env,
-    start_after: Option<u32>,
-    limit: Option<u32>,
-) -> StdResult<Vec<(u32, String)>> {
-    let start = start_after.map(Bound::exclusive);
-
-    let limit = limit.unwrap_or(100).min(100) as usize;
-
-    let tokens = BASE_TOKEN_ID_CW721_ID
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| {
-            let (token_id, position) = item?;
-            Ok((token_id, position))
-        })
-        .collect::<StdResult<Vec<_>>>();
-
-    Ok(tokens.unwrap())
-}
-
-fn query_get_cw721_shuffled_token_ids(
-    deps: Deps,
-    _env: Env,
-    start_after: Option<u64>,
-    limit: Option<u32>,
-) -> StdResult<Vec<(u64, Vec<u32>)>> {
-    let start = start_after.map(Bound::exclusive);
-
-    let limit = limit.unwrap_or(100).min(100) as usize;
-
-    let tokens = CW721_SHUFFLED_TOKEN_IDS
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| {
-            let (token_id, position) = item?;
-            Ok((token_id, position))
-        })
-        .collect::<StdResult<Vec<_>>>();
-
-    Ok(tokens.unwrap())
-}
-*/
 
 fn query_get_cw721_collection_info(
     deps: Deps,

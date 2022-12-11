@@ -24,7 +24,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 fn query_config(deps: Deps, env: Env) -> StdResult<ConfigResponse> {
     let config = CONFIG.load(deps.storage)?;
-    let whitelist_address_count = WHITELIST_ADDRESS_COUNT.load(deps.storage)?;
+    let whitelist_address_count = (WHITELIST_ADDRESS_COUNT.may_load(deps.storage)?).unwrap_or(0);
 
     Ok(ConfigResponse {
         admin: config.admin,

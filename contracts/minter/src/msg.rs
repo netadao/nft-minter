@@ -1,6 +1,7 @@
 use crate::state::SharedCollectionInfo;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary, CosmosMsg, Empty, Timestamp, Uint128};
+use cw_denom::{CheckedDenom, UncheckedDenom};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -47,7 +48,7 @@ pub struct BaseInitMsg {
     pub bundle_mint_price: Uint128,
     /// only native and ibc/ denoms are allowed. onus is on user to verify if
     /// they manually instantiate this contract. otherwise, controlled via frontend
-    pub mint_denom: String,
+    pub mint_denom: UncheckedDenom,
     /// determines if you want to escrow funds or just send funds per tx
     pub escrow_funds: bool,
     pub bundle_enabled: bool,
@@ -149,8 +150,6 @@ pub struct ModuleInstantiateInfo {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    /// shmeh
-    FirstTimeShuffle {},
     /// Uses `BaseInitMsg` to update the the config
     UpdateConfig(BaseInitMsg),
     /// (Re)Initializes submodules if a user desires.  This will replace the
@@ -214,40 +213,6 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-
-    /*
-    /// TODO: REMOVE, TESTING ONLY
-    GetShuffledTokenIds {
-        /// token_id
-        start_after: Option<u32>,
-        limit: Option<u32>,
-    },
-    GetTokenIndices {
-        /// token_id
-        start_after: Option<u32>,
-        limit: Option<u32>,
-    },
-    GetShuffledTokenPosition {
-        /// token_id
-        start_after: Option<u32>,
-        limit: Option<u32>,
-    },
-    GetCw721IdBaseTokenIds {
-        /// token_id
-        start_after: Option<String>,
-        limit: Option<u32>,
-    },
-    GetBaseTokenIdCw721Id {
-        /// token_id
-        start_after: Option<u32>,
-        limit: Option<u32>,
-    },
-    GetCw721ShuffledTokenIds {
-        /// token_id
-        start_after: Option<u64>,
-        limit: Option<u32>,
-    },
-    */
     GetCw721CollectionInfo {
         /// token_id
         start_after: Option<u64>,
@@ -263,7 +228,6 @@ pub enum QueryMsg {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
-
     /// Gets count of remaining tokens available in `CURRENT_TOKEN_SUPPLY`
     GetRemainingTokens {},
     /// Gets all the cw721 addresses attached to this contract
@@ -293,7 +257,7 @@ pub struct ConfigResponse {
     pub bundle_mint_price: Uint128,
     /// only native and ibc/ denoms are allowed. onus is on user to verify if
     /// they manually instantiate this contract. otherwise, controlled via frontend
-    pub mint_denom: String,
+    pub mint_denom: CheckedDenom,
     /// cw721 contract code id
     pub token_code_id: u64,
     /// address to contract that we'll read promised mints and token_ids data from
@@ -343,4 +307,13 @@ pub struct AddressValMsg {
 pub struct AddrBal {
     pub addr: Addr,
     pub balance: Uint128,
+}
+
+/// Used as query response for single collection_id-token_id pairs
+#[cw_serde]
+pub struct TokenMsg {
+    /// address for the promised values
+    pub collection_id: u64,
+    /// promised token_id
+    pub token_id: u32,
 }

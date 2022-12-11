@@ -1,5 +1,6 @@
 use cosmwasm_std::{StdError, Uint128};
 use cw721_base::ContractError as Cw721ContractError;
+use cw_denom::CheckedDenom;
 use cw_utils::ParseReplyError;
 use cw_utils::PaymentError;
 use thiserror::Error;
@@ -27,6 +28,7 @@ pub enum ContractError {
 
     #[error("Cannot provide both address and instantiation info")]
     InvalidSubmoduleInstantiation {},
+
     #[error("Invalid code_id for submodule")]
     InvalidSubmoduleCodeId {},
 
@@ -51,6 +53,13 @@ pub enum ContractError {
     #[error("Campaign creation fee of {fee} {denom} OR royalties to Neta DAO are required.")]
     InvalidCampaignCreationFee { fee: u128, denom: String },
 
+    #[error("Fee of {fee} {denom} is required for this operation ({operation}).")]
+    InvalidFeeAmount {
+        fee: u128,
+        denom: String,
+        operation: String,
+    },
+
     #[error("{contract} Instantiate Error: {error}")]
     ContractInstantiateError {
         contract: String,
@@ -58,7 +67,7 @@ pub enum ContractError {
     },
 
     #[error("Incorrect Payment Amount for token: {token}. Expecting :{amt}")]
-    IncorrectPaymentAmount { token: String, amt: Uint128 },
+    IncorrectPaymentAmount { token: CheckedDenom, amt: Uint128 },
 
     #[error("Invalid mint price")]
     InvalidMintPrice {},
@@ -135,14 +144,6 @@ impl From<ParseError> for ContractError {
         ContractError::InvalidBaseTokenURI {}
     }
 }
-
-/*
-impl From<ParseReplyError> for ContractError {
-    fn from(err: ParseReplyError) -> ContractError {
-        ContractError::ContractInstantiateError { contract, error: err }
-    }
-}
-*/
 
 impl From<ContractError> for Cw721ContractError {
     fn from(err: ContractError) -> Cw721ContractError {

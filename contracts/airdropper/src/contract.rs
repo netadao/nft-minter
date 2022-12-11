@@ -4,7 +4,7 @@ use cw2::set_contract_version;
 use cw_utils::maybe_addr;
 
 use crate::error::ContractError;
-use crate::msg::{AddressValMsg, ExecuteMsg, InstantiateMsg};
+use crate::msg::{AddressTokenMsg, AddressValMsg, ExecuteMsg, InstantiateMsg, TokenMsg};
 use crate::state::{
     Config, ADDRESS_CLAIMED_PROMISED_MINTS, ADDRESS_CLAIMED_TOKEN_IDS, ADDRESS_PROMISED_MINTS,
     ADDRESS_PROMISED_TOKEN_IDS, ASSIGNED_TOKEN_IDS, CLAIMED_TOKEN_IDS, CONFIG,
@@ -59,8 +59,8 @@ pub fn execute(
         ExecuteMsg::UpdateMaintainerAddress(address) => {
             execute_update_maintainer_address(deps, env, info, address)
         }
-        ExecuteMsg::AddPromisedTokenIDs(addresses_msg) => {
-            execute_add_promised_token_ids(deps, env, info, addresses_msg)
+        ExecuteMsg::AddPromisedTokenIDs(msg) => {
+            execute_add_promised_token_ids(deps, env, info, msg)
         }
         ExecuteMsg::RemovePromisedTokenIDs(ids) => {
             execute_remove_promised_token_ids(deps, env, info, ids)
@@ -74,9 +74,7 @@ pub fn execute(
         ExecuteMsg::RemovePromisedMints(addresses) => {
             execute_remove_promised_mints(deps, env, info, addresses)
         }
-        ExecuteMsg::MarkTokenIDClaimed(address, token_id) => {
-            execute_mark_token_id_claimed(deps, env, info, address, token_id)
-        }
+        ExecuteMsg::MarkTokenIDClaimed(msg) => execute_mark_token_id_claimed(deps, env, info, msg),
         ExecuteMsg::IncrementAddressClaimedPromisedMintCount(address) => {
             execute_increment_address_promised_mint_count(deps, env, info, address)
         }
@@ -152,21 +150,25 @@ fn execute_add_promised_token_ids(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    address_vals: Vec<AddressValMsg>,
+    address_tokens: Vec<AddressTokenMsg>,
 ) -> Result<Response, ContractError> {
     check_can_update(deps.as_ref(), &env, &info)?;
 
     // iterate through each { address, value} we have
     // in this case value is the token_id and NOT mint count
-    for address_val in address_vals.into_iter() {
+    for address_token in address_tokens.into_iter() {
+        let token: (u64, u32) = (
+            address_token.token.clone().collection_id,
+            address_token.token.token_id,
+        );
         // check if token has already been assigned
-        if ASSIGNED_TOKEN_IDS.has(deps.storage, address_val.value) {
-            return Err(ContractError::TokenIDAlreadyAssigned(address_val.value));
+        if ASSIGNED_TOKEN_IDS.has(deps.storage, token) {
+            return Err(ContractError::TokenIDAlreadyAssigned(token.0, token.1));
         }
 
-        let mut address_assigned_token_ids: Vec<u32> = vec![];
+        let mut address_assigned_token_ids: Vec<(u64, u32)> = vec![];
 
-        let addr: Addr = deps.api.addr_validate(&address_val.address)?;
+        let addr: Addr = deps.api.addr_validate(&address_token.address)?;
 
         // grab the address' promised token ids
         if ADDRESS_PROMISED_TOKEN_IDS.has(deps.storage, addr.clone()) {
@@ -176,8 +178,8 @@ fn execute_add_promised_token_ids(
         }
 
         // add the assigned value to the vec and store
-        address_assigned_token_ids.push(address_val.value);
-        ASSIGNED_TOKEN_IDS.save(deps.storage, address_val.value, &addr.clone())?;
+        address_assigned_token_ids.push(token);
+        ASSIGNED_TOKEN_IDS.save(deps.storage, token, &addr.clone())?;
         ADDRESS_PROMISED_TOKEN_IDS.save(deps.storage, addr, &address_assigned_token_ids)?;
     }
 
@@ -191,7 +193,7 @@ fn execute_remove_promised_token_ids(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    ids: Vec<u32>,
+    ids: Vec<TokenMsg>,
 ) -> Result<Response, ContractError> {
     check_can_update(deps.as_ref(), &env, &info)?;
 
@@ -200,14 +202,15 @@ fn execute_remove_promised_token_ids(
         // vec of assigned tokens and then remove it from the assigned tracker
         // if empty, we'll remove the address from `ADDRESS_PROMISED_TOKEN_IDS`
         // entirely
-        if ASSIGNED_TOKEN_IDS.has(deps.storage, id) {
-            let addr: Addr = ASSIGNED_TOKEN_IDS.load(deps.storage, id)?;
+        if ASSIGNED_TOKEN_IDS.has(deps.storage, (id.collection_id, id.token_id)) {
+            let addr: Addr =
+                ASSIGNED_TOKEN_IDS.load(deps.storage, (id.collection_id, id.token_id))?;
 
             let mut address_assigned_token_ids = (ADDRESS_PROMISED_TOKEN_IDS
                 .may_load(deps.storage, addr.clone())?)
             .unwrap_or_default();
 
-            address_assigned_token_ids.retain(|&val| val != id);
+            address_assigned_token_ids.retain(|&val| val != (id.collection_id, id.token_id));
 
             // if the vec has no items left, remove it
             if address_assigned_token_ids.is_empty() {
@@ -215,7 +218,7 @@ fn execute_remove_promised_token_ids(
             } else {
                 ADDRESS_PROMISED_TOKEN_IDS.save(deps.storage, addr, &address_assigned_token_ids)?;
             }
-            ASSIGNED_TOKEN_IDS.remove(deps.storage, id);
+            ASSIGNED_TOKEN_IDS.remove(deps.storage, (id.collection_id, id.token_id));
         }
         // TODO: check error?
     }
@@ -300,22 +303,26 @@ fn execute_mark_token_id_claimed(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    address: String,
-    token_id: u32,
+    address_token_msg: AddressTokenMsg,
 ) -> Result<Response, ContractError> {
     check_can_update(deps.as_ref(), &env, &info)?;
+
+    let token_id: (u64, u32) = (
+        address_token_msg.token.collection_id,
+        address_token_msg.token.token_id,
+    );
 
     // this should probably never happen
     if CLAIMED_TOKEN_IDS.has(deps.storage, token_id) {
         let addr: Addr = CLAIMED_TOKEN_IDS.load(deps.storage, token_id)?;
-        println!("addraddraddr {:?}", addr);
         return Err(ContractError::TokenIDAlreadyClaimed(
-            token_id,
+            token_id.0,
+            token_id.1,
             addr.to_string(),
         ));
     }
 
-    let addr: Addr = deps.api.addr_validate(&address)?;
+    let addr: Addr = deps.api.addr_validate(&address_token_msg.address)?;
 
     let mut address_promised_token_ids =
         (ADDRESS_PROMISED_TOKEN_IDS.may_load(deps.storage, addr.clone())?).unwrap_or_default();

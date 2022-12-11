@@ -7,8 +7,8 @@ use airdropper::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use airdropper::state::Config;
 
 use airdropper::msg::{
-    AddressPromisedTokensResponse, AddressValMsg, CheckAirdropPromisedMintResponse,
-    CheckAirdropPromisedTokensResponse,
+    AddressPromisedTokensResponse, AddressTokenMsg, AddressValMsg,
+    CheckAirdropPromisedMintResponse, CheckAirdropPromisedTokensResponse, TokenMsg,
 };
 
 fn main() {
@@ -24,27 +24,27 @@ fn main() {
 
     export_schema_with_title(&schema_for!(Config), &out_dir, "GetConfigResponse");
     export_schema_with_title(
-        &schema_for!(AddressPromisedTokensResponse),
+        &schema_for!(Vec<AddressPromisedTokensResponse>),
         &out_dir,
         "GetAddressPromisedTokenIDsResponse",
     );
     export_schema_with_title(
-        &schema_for!(Vec<u32>),
+        &schema_for!(Vec<TokenMsg>),
         &out_dir,
         "GetAssignedTokenIDsResponse",
     );
     export_schema_with_title(
-        &schema_for!(Vec<AddressValMsg>),
+        &schema_for!(Vec<AddressTokenMsg>),
         &out_dir,
         "GetAssignedTokenIDsWithAddressResponse",
     );
     export_schema_with_title(
-        &schema_for!(Vec<u32>),
+        &schema_for!(Vec<TokenMsg>),
         &out_dir,
         "GetClaimedTokenIDsResponse",
     );
     export_schema_with_title(
-        &schema_for!(Vec<AddressValMsg>),
+        &schema_for!(Vec<AddressTokenMsg>),
         &out_dir,
         "GetClaimedTokenIDsWithAddressResponse",
     );

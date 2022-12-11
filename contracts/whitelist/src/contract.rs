@@ -63,7 +63,6 @@ pub fn instantiate(
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     CONFIG.save(deps.storage, &config)?;
-    WHITELIST_ADDRESS_COUNT.save(deps.storage, &0)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -201,7 +200,8 @@ pub fn execute_add_to_whitelist(
     check_can_update(deps.as_ref(), &env, &info, true)?;
 
     let config = CONFIG.load(deps.storage)?;
-    let mut whitelist_address_count: u32 = WHITELIST_ADDRESS_COUNT.load(deps.storage)?;
+    let mut whitelist_address_count: u32 =
+        (WHITELIST_ADDRESS_COUNT.may_load(deps.storage)?).unwrap_or(0);
 
     // remove dupes
     addresses.sort_unstable();

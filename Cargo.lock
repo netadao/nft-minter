@@ -396,6 +396,7 @@ dependencies = [
  "anyhow",
  "cosm-orc",
  "cosmwasm-std",
+ "cw-denom",
  "env_logger",
  "minter",
  "serde_json",
@@ -576,6 +577,17 @@ dependencies = [
  "rand_core 0.5.1",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "cw-denom"
+version = "2.0.0-beta"
+source = "git+https://github.com/DA0-DA0/dao-contracts?tag=v2.0.0-beta#74bd3881fdd86829e5e8b132b9952dd64f2d0737"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw20",
+ "thiserror",
 ]
 
 [[package]]
@@ -1457,6 +1469,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "cw-denom",
  "cw-multi-test",
  "cw-storage-plus",
  "cw-utils",
