@@ -21,6 +21,7 @@ pub struct Config {
     pub escrow_funds: bool,
     pub bundle_enabled: bool,
     pub bundle_completed: bool,
+    pub bonded_denom: String,
 }
 
 #[cw_serde]

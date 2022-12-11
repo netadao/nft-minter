@@ -55,7 +55,6 @@ fn main() -> Result<()> {
             airdropper_instantiate_info: None,
             whitelist_address: None,
             whitelist_instantiate_info: None,
-            fee_collection_address: None,
             token_code_id: 2,
             collection_infos: vec![CollectionInfoMsg {
                 token_supply: 10000,

@@ -102,7 +102,6 @@ const DEFAULT_FEE_COLLECTION_ADDRESS: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99
 
 /// default fee amount assumes 6 decimal
 const DEFAULT_FEE_AMOUNT: u128 = 1_000_000u128;
-const DEFAULT_FEE_DENOM: &str = "ujunox";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -189,6 +188,8 @@ pub fn instantiate(
         }
     */
 
+    let bonded_denom: String = deps.querier.query_bonded_denom()?;
+
     let config = Config {
         admin: info.sender.clone(),
         maintainer_addr: maybe_addr(deps.api, msg.base_fields.maintainer_address)?,
@@ -205,6 +206,7 @@ pub fn instantiate(
         escrow_funds: msg.base_fields.escrow_funds,
         bundle_enabled: msg.base_fields.bundle_enabled,
         bundle_completed: false,
+        bonded_denom,
     };
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -220,13 +222,10 @@ pub fn instantiate(
         &validate_collection_info_res.total_token_supply,
     )?;
 
-    // establish minter address. if no `minter_address` is provided, then we default to sender
-    let fee_collection_addr: Addr = deps.api.addr_validate(
-        &msg.fee_collection_address
-            .unwrap_or_else(|| DEFAULT_FEE_COLLECTION_ADDRESS.to_string()),
+    FEE_COLLECTION_ADDR.save(
+        deps.storage,
+        &deps.api.addr_validate(DEFAULT_FEE_COLLECTION_ADDRESS)?,
     )?;
-
-    FEE_COLLECTION_ADDR.save(deps.storage, &fee_collection_addr)?;
 
     let mut sub_msgs: Vec<SubMsg> = vec![];
 
@@ -1186,11 +1185,11 @@ fn execute_shuffle_token_order(
     // if not admin or maintainer, a fee is needed to execute this function
     if config.admin != info.sender && config.maintainer_addr != Some(info.sender.clone()) {
         // check payment
-        let payment = must_pay(&info, DEFAULT_FEE_DENOM)?;
+        let payment = must_pay(&info, &config.bonded_denom)?;
 
         if payment != Uint128::from(DEFAULT_FEE_AMOUNT) {
             return Err(ContractError::InvalidFeeAmount {
-                denom: DEFAULT_FEE_DENOM.to_string(),
+                denom: config.bonded_denom,
                 fee: DEFAULT_FEE_AMOUNT,
                 operation: "shuffle_token_order".to_string(),
             });
@@ -1200,7 +1199,7 @@ fn execute_shuffle_token_order(
 
         let msg = BankMsg::Send {
             to_address: fee_collection_addr.into_string(),
-            amount: vec![coin(DEFAULT_FEE_AMOUNT, DEFAULT_FEE_DENOM)],
+            amount: vec![coin(DEFAULT_FEE_AMOUNT, config.bonded_denom)],
         };
 
         res = res.add_message(msg);

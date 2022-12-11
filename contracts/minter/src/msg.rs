@@ -8,10 +8,6 @@ pub struct InstantiateMsg {
     pub base_fields: BaseInitMsg,
     /// name of nft project
     pub name: String,
-    /// fee collection address, will default to DEFAULT_FEE_COLLECTION_ADDRESS
-    /// if not provided. default address is in contract.rs and will be either
-    /// a DAO address or the juno community address
-    pub fee_collection_address: Option<String>,
     /// airdropper address if it was manaully instantiated elsewhere
     pub airdrop_address: Option<String>,
     /// airdropper instantiation info must have either or none
@@ -232,7 +228,6 @@ pub enum QueryMsg {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
-
     /// Gets count of remaining tokens available in `CURRENT_TOKEN_SUPPLY`
     GetRemainingTokens {},
     /// Gets all the cw721 addresses attached to this contract

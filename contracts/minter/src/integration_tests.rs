@@ -83,7 +83,7 @@ mod tests {
     const USER10: &str = "user10";
     const USER25: &str = "user25";
     const ADMIN: &str = "admin";
-    const NATIVE_DENOM: &str = "ujunox";
+    const NATIVE_DENOM: &str = "TOKEN";
     const MAINTAINER_ADDR: &str = "whiskey";
     const INVALID: &str = "invalid";
 
@@ -246,7 +246,6 @@ mod tests {
             },
             whitelist_address: None,
             airdrop_address: None,
-            fee_collection_address: None,
             token_code_id: cw721_id,
             name: "TESTNFTPROJECT".to_string(),
             airdropper_instantiate_info: airdropper_module_instantiate,
@@ -439,7 +438,6 @@ mod tests {
             },
             whitelist_address: None,
             airdrop_address: None,
-            fee_collection_address: None,
             token_code_id: cw721_id,
             name: "TESTNFTPROJECT".to_string(),
             airdropper_instantiate_info: airdropper_module_instantiate,
@@ -853,6 +851,8 @@ mod tests {
             )
             .unwrap();
 
+            app.update_block(|mut block| block.height += 1);
+
             app.execute_contract(
                 Addr::unchecked(USER.to_owned()),
                 cw_template_contract.addr(),
@@ -860,6 +860,26 @@ mod tests {
                 &[],
             )
             .unwrap_err();
+
+            app.execute_contract(
+                Addr::unchecked(USER.to_owned()),
+                cw_template_contract.addr(),
+                &ExecuteMsg::ShuffleTokenOrder {},
+                &[coin(3_000_000, NATIVE_DENOM)],
+            )
+            .unwrap_err();
+
+            app.update_block(|mut block| block.height += 1);
+
+            app.execute_contract(
+                Addr::unchecked(USER.to_owned()),
+                cw_template_contract.addr(),
+                &ExecuteMsg::ShuffleTokenOrder {},
+                &[coin(1_000_000, NATIVE_DENOM)],
+            )
+            .unwrap();
+
+            app.update_block(|mut block| block.height += 1);
 
             app.execute_contract(
                 Addr::unchecked(ADMIN.to_owned()),
@@ -4618,7 +4638,8 @@ mod tests {
 
             let msg = ExecuteMsg::Mint {};
 
-            for _ in 0u32..=5987 {
+            for _ in 0u32..=5 {
+                // 5987
                 let _res = app
                     .execute_contract(
                         Addr::unchecked(USER25),
@@ -4644,16 +4665,6 @@ mod tests {
                 .unwrap();
 
             println!("per_collection_supplies {:?}", per_collection_supplies);
-
-            let _res = app
-                .execute_contract(
-                    Addr::unchecked(USER25),
-                    cw_template_contract.addr(),
-                    &msg,
-                    &[coin(2_000_000, NATIVE_DENOM)],
-                )
-                .unwrap_err();
-            println!("final mint error {:?}", _res);
 
             let mints: Vec<AddressValMsg> = app
                 .wrap()
