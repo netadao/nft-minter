@@ -39,12 +39,12 @@ fn main() {
         "GetAssignedTokenIDsWithAddressResponse",
     );
     export_schema_with_title(
-        &schema_for!(Vec<u32>),
+        &schema_for!(Vec<TokenMsg>),
         &out_dir,
         "GetClaimedTokenIDsResponse",
     );
     export_schema_with_title(
-        &schema_for!(Vec<AddressValMsg>),
+        &schema_for!(Vec<AddressTokenMsg>),
         &out_dir,
         "GetClaimedTokenIDsWithAddressResponse",
     );

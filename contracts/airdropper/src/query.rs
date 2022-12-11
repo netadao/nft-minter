@@ -147,12 +147,16 @@ fn query_get_claimed_token_ids(
 
     let limit = limit.unwrap_or(100).min(100) as usize;
 
-    let data: Vec<(u64, u32)> = CLAIMED_TOKEN_IDS
+    let data: Vec<TokenMsg> = CLAIMED_TOKEN_IDS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            let (token_id, _) = item?;
-            Ok(token_id)
+            let (token, _) = item?;
+
+            Ok(TokenMsg {
+                collection_id: token.0,
+                token_id: token.1,
+            })
         })
         .collect::<StdResult<Vec<_>>>()?;
 
