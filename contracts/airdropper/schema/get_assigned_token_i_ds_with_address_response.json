@@ -3,28 +3,54 @@
   "title": "GetAssignedTokenIDsWithAddressResponse",
   "type": "array",
   "items": {
-    "$ref": "#/definitions/AddressValMsg"
+    "$ref": "#/definitions/AddressTokenMsg"
   },
   "definitions": {
-    "AddressValMsg": {
-      "description": "Used as execution msg and query response for single Address-Value pairs eg address is promised token_id 8 or address is promised 3 mints or token_id 6 was minted by address: \"juno1addr\"",
+    "AddressTokenMsg": {
+      "description": "Used as execution msg and query response for single Address-TokenMsg pairs eg address is promised collection_id 3's token_id 8",
       "type": "object",
       "required": [
         "address",
-        "value"
+        "token"
       ],
       "properties": {
         "address": {
           "description": "address for the promised values",
           "type": "string"
         },
-        "value": {
+        "token": {
           "description": "promised token_id OR promised mint count",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TokenMsg"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "TokenMsg": {
+      "description": "Used as query response for single collection_id-token_id pairs",
+      "type": "object",
+      "required": [
+        "collection_id",
+        "token_id"
+      ],
+      "properties": {
+        "collection_id": {
+          "description": "address for the promised values",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "token_id": {
+          "description": "promised token_id",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         }
-      }
+      },
+      "additionalProperties": false
     }
   }
 }

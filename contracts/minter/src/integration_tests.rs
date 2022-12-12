@@ -12,7 +12,6 @@ mod tests {
 
     use cw_denom::UncheckedDenom;
     use cw_multi_test::{App, AppBuilder, BankSudo, Contract, ContractWrapper, Executor, SudoMsg};
-    use prost::Message;
 
     use whitelist::{
         msg::ConfigResponse as WhitelistConfig, msg::ExecuteMsg as WhitelistExecuteMsg,
@@ -30,15 +29,6 @@ mod tests {
         },
         state::Config as AirdropperConfig,
     };
-
-    // Type for replies to contract instantiate messes
-    #[derive(Clone, PartialEq, Message)]
-    struct MsgInstantiateContractResponse {
-        #[prost(string, tag = "1")]
-        pub contract_address: ::prost::alloc::string::String,
-        #[prost(bytes, tag = "2")]
-        pub data: ::prost::alloc::vec::Vec<u8>,
-    }
 
     pub fn contract_template() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new(

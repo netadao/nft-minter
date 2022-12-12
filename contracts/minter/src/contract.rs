@@ -33,12 +33,10 @@ use cw721_base::{
 };
 use cw_utils::{may_pay, maybe_addr, must_pay, parse_reply_instantiate_data};
 use rand_core::{RngCore, SeedableRng};
-use rand_xoshiro::Xoshiro128StarStar;
+use rand_xoshiro::Xoshiro128PlusPlus;
 use sha2::{Digest, Sha256};
 use shuffle::{fy::FisherYates, shuffler::Shuffler};
 use std::cmp;
-#[cfg(not(feature = "library"))]
-use std::convert::TryInto;
 use url::Url;
 use whitelist::{
     msg::CheckWhitelistResponse,
@@ -1505,7 +1503,7 @@ fn shuffle_token_ids(
     );
     // Cut first 16 bytes from 32 byte value
     let randomness: [u8; 16] = sha256.to_vec()[0..16].try_into().unwrap();
-    let mut rng = Xoshiro128StarStar::from_seed(randomness);
+    let mut rng = Xoshiro128PlusPlus::from_seed(randomness);
     let mut shuffler = FisherYates::default();
 
     shuffler
@@ -1587,7 +1585,7 @@ fn shuffle_and_draw_index(
 
     // Cut first 16 bytes from 32 byte value
     let randomness: [u8; 16] = sha256.to_vec()[0..16].try_into().unwrap();
-    let mut rng = Xoshiro128StarStar::from_seed(randomness);
+    let mut rng = Xoshiro128PlusPlus::from_seed(randomness);
 
     let r = rng.next_u32();
 
@@ -1891,10 +1889,6 @@ fn check_public_mint_bundle(
 }
 
 // #endregion
-
-// #region funds
-
-//fn send_funds()
 
 // #endregion
 

@@ -3,8 +3,31 @@
   "title": "GetAssignedTokenIDsResponse",
   "type": "array",
   "items": {
-    "type": "integer",
-    "format": "uint32",
-    "minimum": 0.0
+    "$ref": "#/definitions/TokenMsg"
+  },
+  "definitions": {
+    "TokenMsg": {
+      "description": "Used as query response for single collection_id-token_id pairs",
+      "type": "object",
+      "required": [
+        "collection_id",
+        "token_id"
+      ],
+      "properties": {
+        "collection_id": {
+          "description": "address for the promised values",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "token_id": {
+          "description": "promised token_id",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
   }
 }
