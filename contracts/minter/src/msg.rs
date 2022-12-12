@@ -52,6 +52,8 @@ pub struct BaseInitMsg {
     /// determines if you want to escrow funds or just send funds per tx
     pub escrow_funds: bool,
     pub bundle_enabled: bool,
+    pub airdropper_address: Option<String>,
+    pub whitelist_address: Option<String>,
 }
 
 #[cw_serde]
@@ -155,23 +157,19 @@ pub enum ExecuteMsg {
     /// (Re)Initializes submodules if a user desires.  This will replace the
     /// existing submodule that its targeting.
     InitSubmodule(u64, ModuleInstantiateInfo),
-    /// Update the attached `WHITELIST_ADDR`
-    UpdateWhitelistAddress(Option<String>),
-    /// Update the attached `AIRDROPPER_ADDR`
-    UpdateAirdropAddress(Option<String>),
     /// General path for whitelist and public mints
     /// whitelist requires eligibility, public mint right now does not
-    Mint {},
-    MintBundle {},
     /// AirdropMint allow users to mint an NFT that was promised to them
     /// feeless (`mint_price` = 0). the airdrop promised mint is managed in
     /// the contract attached to `AIRDROPPER_ADDR`
     /// the optional `minter_address` is if a maintainer wants to `push`
     /// an nft to the address rather than having the recipient come `pull`
     /// the promised mint by executing this function themselves
-    AirdropMint {
+    Mint {
+        is_promised_mint: bool,
         minter_address: Option<String>,
     },
+    MintBundle {},
     /// airdrop claim is intended for 1:1s or other creator criteria for
     /// granting ownership of specific `token_id`s. This is controlled in the
     /// contract attached to `AIRDROPPER_ADDR`
@@ -246,7 +244,6 @@ pub struct ConfigResponse {
     /// TODO: migrate to optional?
     pub end_time: Option<Timestamp>,
     /// maximum token supply
-    /// TODO: move to uncapped for special project
     pub total_token_supply: u32,
     /// maximum mints per address
     pub max_per_address_mint: u32,

@@ -66,20 +66,4 @@ pub const COLLECTION_CURRENT_TOKEN_SUPPLY: Map<u64, u32> =
 pub const ADDRESS_MINT_TRACKER: Map<Addr, u32> = Map::new("address_mint_tracker");
 pub const BUNDLE_MINT_TRACKER: Map<Addr, u32> = Map::new("bundle_mint_tracker");
 pub const BANK_BALANCES: Map<Addr, Uint128> = Map::new("bank_balances");
-pub const TOKEN_MINTED_BY: Map<String, Addr> = Map::new("token_minted_by");
-
-//
-// (idx, token_id)
-// based on index (1-N), we'll dump whatever token_id back for minting
-// eg: (1, 5), (2, 3), (3, 1), (4, 4), (5, 2)
-///pub const SHUFFLED_BASE_TOKEN_IDS: Map<u32, u32> = Map::new("shuffled_base_token_ids");
-// (token_id, idx)
-// based on token_id, we can find where it is in the shuffled map
-// eg: (1, 3), (2, 5), (3, 2), (4, 4), (5, 1)
-///pub const BASE_TOKEN_ID_POSITIONS: Map<u32, u32> = Map::new("base_token_id_positions");
-// (token_id, cw721_id)
-// map a "token_id" to a cw721_collection:id
-// eg: ()
-///pub const BASE_TOKEN_ID_CW721_ID: Map<u32, String> = Map::new("base_token_id_cw721_id");
-// (cw721_id, token_id) helps locate token_id
 pub const CW721_SHUFFLED_TOKEN_IDS: Map<u64, Vec<u32>> = Map::new("cw721_shuffled_token_ids");

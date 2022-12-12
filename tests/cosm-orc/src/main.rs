@@ -48,6 +48,8 @@ fn main() -> Result<()> {
                 mint_denom: UncheckedDenom::Native("ujunox".to_string()),
                 escrow_funds: true,
                 bundle_enabled: false,
+                airdropper_address: None,
+                whitelist_address: None,
             },
             name: "test1".to_string(),
             airdrop_address: None,
