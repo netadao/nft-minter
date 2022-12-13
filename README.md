@@ -61,10 +61,10 @@ sudo docker exec -i juno_node_1 junod tx wasm store /opt/minter.wasm \
 Leveraging open source work, some code and inspiration may have come from these repos:
 
 - [CosmWasm cw-nfts](https://github.com/CosmWasm/cw-nfts/tree/main/contracts)
-    - This repo contains some of the first minting contract work in CosmWasm
-- [DAODAO Contracts](https://github.com/DA0-DA0/dao-contracts)
+    - This repo contains some of the first NFT minting contracts in CosmWasm
+- [DAODAO](https://github.com/DA0-DA0/dao-contracts)
     - A lot of growth, experience and contributions are thanks to the DAODAO team
-- [Stargaze Minter](https://github.com/public-awesome/launchpad/tree/main/contracts/minter/src)
+- [Stargaze Minter](https://github.com/public-awesome/launchpad/blob/c425d5fc45fc44391dc231b31c740f9a53eee2fb/contracts/vending-minter/src/contract.rs#L266)
     - The `shuffle` logic from Stargaze's contracts.
 
 ### Disclaimer
