@@ -46,6 +46,16 @@ docker run --rm -v "$(pwd)":/code \
 		cosmwasm/workspace-optimizer:0.12.10
 ```
 
+Misc notes:
+
+```
+sudo docker cp ./artifacts/minter.wasm juno_node_1:/opt/minter.wasm
+sudo docker exec -i juno_node_1 junod tx wasm store /opt/minter.wasm \
+    --gas-prices 0.1ujunox --gas auto --gas-adjustment 1.3 \
+    -y -b block --chain-id testing \
+    --from localnet --output json 
+```
+
 ### References and credits
 
 Leveraging open source work, some code and inspiration may have come from these repos:

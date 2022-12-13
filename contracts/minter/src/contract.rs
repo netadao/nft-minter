@@ -141,12 +141,12 @@ pub fn instantiate(
     }
 
     // if both an address and instantiate info are given, then error out
-    if msg.airdrop_address.is_some() && msg.airdropper_instantiate_info.is_some() {
+    if msg.base_fields.airdropper_address.is_some() && msg.airdropper_instantiate_info.is_some() {
         return Err(ContractError::InvalidSubmoduleInstantiation {});
     }
 
     // if both an address and instantiate info are given, then error out
-    if msg.whitelist_address.is_some() && msg.whitelist_instantiate_info.is_some() {
+    if msg.base_fields.whitelist_address.is_some() && msg.whitelist_instantiate_info.is_some() {
         return Err(ContractError::InvalidSubmoduleInstantiation {});
     }
 
@@ -221,10 +221,10 @@ pub fn instantiate(
             SubMsg::reply_on_success(airdropper_instantiate_msg, INSTANTIATE_AIRDROPPER_REPLY_ID);
 
         sub_msgs.push(airdropper_instantiate_msg);
-    } else if msg.airdrop_address.is_some() {
+    } else if msg.base_fields.airdropper_address.is_some() {
         AIRDROPPER_ADDR.save(
             deps.storage,
-            &deps.api.addr_validate(&msg.airdrop_address.unwrap())?,
+            &deps.api.addr_validate(&msg.base_fields.airdropper_address.unwrap())?,
         )?;
     }
 
@@ -236,10 +236,10 @@ pub fn instantiate(
             SubMsg::reply_on_success(whitelist_instantiate_msg, INSTANTIATE_WHITELIST_REPLY_ID);
 
         sub_msgs.push(whitelist_instantiate_msg);
-    } else if msg.whitelist_address.is_some() {
+    } else if msg.base_fields.whitelist_address.is_some() {
         WHITELIST_ADDR.save(
             deps.storage,
-            &deps.api.addr_validate(&msg.whitelist_address.unwrap())?,
+            &deps.api.addr_validate(&msg.base_fields.whitelist_address.unwrap())?,
         )?;
     }
 

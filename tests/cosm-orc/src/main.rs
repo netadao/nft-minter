@@ -51,9 +51,7 @@ fn main() -> Result<()> {
                 whitelist_address: None,
             },
             name: "test1".to_string(),
-            airdrop_address: None,
             airdropper_instantiate_info: None,
-            whitelist_address: None,
             whitelist_instantiate_info: None,
             token_code_id: 2,
             collection_infos: vec![CollectionInfoMsg {

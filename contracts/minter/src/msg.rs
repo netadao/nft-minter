@@ -7,13 +7,9 @@ pub struct InstantiateMsg {
     pub base_fields: BaseInitMsg,
     /// name of nft project
     pub name: String,
-    /// airdropper address if it was manaully instantiated elsewhere
-    pub airdrop_address: Option<String>,
     /// airdropper instantiation info must have either or none
     /// against `airdrop_address`
     pub airdropper_instantiate_info: Option<ModuleInstantiateInfo>,
-    /// whitelist address if it was manaully instantiated elsewhere
-    pub whitelist_address: Option<String>,
     /// whitelist contract instantiation info. must have either or none
     /// against `whitelist_address`
     pub whitelist_instantiate_info: Option<ModuleInstantiateInfo>,
