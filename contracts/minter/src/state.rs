@@ -21,6 +21,10 @@ pub struct Config {
     pub bundle_enabled: bool,
     pub bundle_completed: bool,
     pub bonded_denom: String,
+    pub custom_bundle_enabled: bool,
+    pub custom_bundle_completed: bool,
+    pub custom_bundle_mint_price: Uint128,
+    pub custom_bundle_content_count: u32,
 }
 
 #[cw_serde]
@@ -66,3 +70,7 @@ pub const ADDRESS_MINT_TRACKER: Map<Addr, u32> = Map::new("address_mint_tracker"
 pub const BUNDLE_MINT_TRACKER: Map<Addr, u32> = Map::new("bundle_mint_tracker");
 pub const BANK_BALANCES: Map<Addr, Uint128> = Map::new("bank_balances");
 pub const CW721_SHUFFLED_TOKEN_IDS: Map<u64, Vec<u32>> = Map::new("cw721_shuffled_token_ids");
+
+// custom bundle trackers
+pub const CUSTOM_BUNDLE_TOKENS: Item<Vec<(u64, u32)>> = Item::new("custom_bundle_tokens");
+pub const CUSTOM_BUNDLE_MINT_TRACKER: Map<Addr, u32> = Map::new("custom_bundle_mint_tracker");
