@@ -1,7 +1,6 @@
 use crate::state::SharedCollectionInfo;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary, CosmosMsg, Empty, Timestamp, Uint128};
-use cw_denom::{CheckedDenom, UncheckedDenom};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -48,7 +47,7 @@ pub struct BaseInitMsg {
     pub bundle_mint_price: Uint128,
     /// only native and ibc/ denoms are allowed. onus is on user to verify if
     /// they manually instantiate this contract. otherwise, controlled via frontend
-    pub mint_denom: UncheckedDenom,
+    pub mint_denom: String,
     /// determines if you want to escrow funds or just send funds per tx
     pub escrow_funds: bool,
     pub bundle_enabled: bool,
@@ -254,7 +253,7 @@ pub struct ConfigResponse {
     pub bundle_mint_price: Uint128,
     /// only native and ibc/ denoms are allowed. onus is on user to verify if
     /// they manually instantiate this contract. otherwise, controlled via frontend
-    pub mint_denom: CheckedDenom,
+    pub mint_denom: String,
     /// cw721 contract code id
     pub token_code_id: u64,
     /// address to contract that we'll read promised mints and token_ids data from

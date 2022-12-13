@@ -10,7 +10,6 @@ mod tests {
         coin, coins, to_binary, Addr, Coin, CosmosMsg, Empty, Timestamp, Uint128, WasmMsg,
     };
 
-    use cw_denom::UncheckedDenom;
     use cw_multi_test::{App, AppBuilder, BankSudo, Contract, ContractWrapper, Executor, SudoMsg};
 
     use whitelist::{
@@ -96,10 +95,6 @@ mod tests {
 
     const MAX_PER_ADDRESS_MINT: u32 = 4;
     //const MAX_TOKEN_SUPPLY: u32 = 5;
-
-    fn unchecked_denom() -> UncheckedDenom {
-        UncheckedDenom::Native(NATIVE_DENOM.to_string())
-    }
 
     fn mock_app() -> App {
         AppBuilder::new().build(|router, _, storage| {
@@ -229,7 +224,7 @@ mod tests {
                 max_per_address_mint: MAX_PER_ADDRESS_MINT,
                 mint_price: Uint128::from(MINT_PRICE),
                 bundle_mint_price: Uint128::from(BUNDLE_MINT_PRICE),
-                mint_denom: unchecked_denom(),
+                mint_denom: NATIVE_DENOM.to_owned(),
                 escrow_funds: false,
                 max_per_address_bundle_mint: 3000,
                 bundle_enabled: bundle,
@@ -423,7 +418,7 @@ mod tests {
                 max_per_address_mint: MAX_PER_ADDRESS_MINT,
                 mint_price: Uint128::from(MINT_PRICE),
                 bundle_mint_price: Uint128::from(BUNDLE_MINT_PRICE),
-                mint_denom: unchecked_denom(),
+                mint_denom: NATIVE_DENOM.to_owned(),
                 escrow_funds: false,
                 max_per_address_bundle_mint: 1,
                 bundle_enabled: bundle,
@@ -682,7 +677,7 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: unchecked_denom(),
+                mint_denom: NATIVE_DENOM.to_owned(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
                 airdropper_address,
@@ -2955,7 +2950,7 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
+                mint_denom: config.mint_denom.to_string(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
                 airdropper_address,
@@ -3208,7 +3203,7 @@ mod tests {
 
             let contract_balance: Coin = app
                 .wrap()
-                .query_balance(&cw_template_contract.addr(), config.mint_denom.to_string())
+                .query_balance(&cw_template_contract.addr(), config.mint_denom)
                 .unwrap();
             assert_eq!(contract_balance.amount, Uint128::zero());
             println!("contract_balance {:?}", contract_balance);
@@ -3839,7 +3834,7 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
+                mint_denom: config.mint_denom.to_string(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
                 airdropper_address: None,
@@ -4013,7 +4008,7 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
+                mint_denom: config.mint_denom.to_string(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
                 airdropper_address: None,
@@ -4695,7 +4690,7 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
+                mint_denom: config.mint_denom.to_string(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
                 airdropper_address: None,

@@ -23,8 +23,8 @@ use airdropper::{
     },
 };
 use cosmwasm_std::{
-    coin, entry_point, to_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo,
-    Order, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    coin, entry_point, to_binary, Addr, BankMsg, Coin, CosmosMsg, Deps, DepsMut, Empty, Env,
+    MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -37,7 +37,6 @@ use rand_xoshiro::Xoshiro128PlusPlus;
 use sha2::{Digest, Sha256};
 use shuffle::{fy::FisherYates, shuffler::Shuffler};
 use std::cmp;
-use url::Url;
 use whitelist::{
     msg::CheckWhitelistResponse,
     msg::ExecuteMsg::{
@@ -46,8 +45,6 @@ use whitelist::{
     },
     msg::QueryMsg as WhitelistQueryMsg,
 };
-
-use cw_denom::CheckedDenom;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:nft-minter";
@@ -160,18 +157,7 @@ pub fn instantiate(
     // validate the denom the user selected is one that is allowed.
     // cw20 banned
 
-    let checked_denom = msg
-        .base_fields
-        .mint_denom
-        .into_checked(deps.as_ref())
-        .unwrap();
-
-    match checked_denom {
-        CheckedDenom::Native(_) => {}
-        _ => {
-            return Err(ContractError::InvalidPaymentType {});
-        }
-    }
+    validate_native_denom(msg.base_fields.mint_denom.clone())?;
 
     // TODO: add required fee that goes to neta dao's treasury dao OR if the treasury dao
     // is included in rev share then allow this to bypass
@@ -198,7 +184,7 @@ pub fn instantiate(
         max_per_address_bundle_mint: msg.base_fields.max_per_address_bundle_mint,
         mint_price: msg.base_fields.mint_price,
         bundle_mint_price: msg.base_fields.bundle_mint_price,
-        mint_denom: checked_denom,
+        mint_denom: msg.base_fields.mint_denom,
         token_code_id: msg.token_code_id,
         extension: shared_collection_info,
         escrow_funds: msg.base_fields.escrow_funds,
@@ -427,15 +413,8 @@ fn execute_update_config(
         config.max_per_address_mint = msg.max_per_address_mint;
     }
 
-    let checked_denom = msg.mint_denom.into_checked(deps.as_ref()).unwrap();
-
-    match checked_denom {
-        CheckedDenom::Native(_) => {
-            config.mint_denom = checked_denom;
-        }
-        _ => {
-            return Err(ContractError::InvalidPaymentType {});
-        }
+    if validate_native_denom(msg.mint_denom.clone())? {
+        config.mint_denom = msg.mint_denom;
     }
 
     if msg.mint_price != config.mint_price {
@@ -614,7 +593,7 @@ fn _execute_mint(
     let config = CONFIG.load(deps.storage)?;
 
     // check payment
-    let payment = may_pay(&info, &config.mint_denom.to_string())?;
+    let payment = may_pay(&info, &config.mint_denom)?;
 
     if payment != mint_price {
         return Err(ContractError::IncorrectPaymentAmount {
@@ -787,7 +766,7 @@ fn execute_mint_bundle(
         }
     }
 
-    let payment = may_pay(&info, &config.mint_denom.to_string())?;
+    let payment = may_pay(&info, &config.mint_denom)?;
 
     if payment != config.bundle_mint_price {
         return Err(ContractError::IncorrectPaymentAmount {
@@ -943,7 +922,7 @@ fn _disburse_or_escrow_funds(
     escrow_funds: bool,
     royalty_addr: Addr,
     amount: Uint128,
-    mint_denom: CheckedDenom,
+    mint_denom: String,
 ) -> Result<Response, ContractError> {
     if escrow_funds {
         let balance = (BANK_BALANCES.may_load(deps.storage, royalty_addr.clone())?)
@@ -951,7 +930,13 @@ fn _disburse_or_escrow_funds(
 
         BANK_BALANCES.save(deps.storage, royalty_addr, &(balance + amount))?;
     } else {
-        let msg = mint_denom.get_transfer_to_message(&royalty_addr, amount)?;
+        let msg = BankMsg::Send {
+            to_address: royalty_addr.to_string(),
+            amount: vec![Coin {
+                amount,
+                denom: mint_denom,
+            }],
+        };
 
         res = res.add_message(msg);
     }
@@ -1190,10 +1175,10 @@ fn execute_disburse_funds(
         return Err(ContractError::Unauthorized {});
     }
 
-    let mut remaining_balance: Uint128 = config
-        .mint_denom
-        .query_balance(&deps.querier, &env.contract.address)
-        .unwrap();
+    let mut remaining_balance: Uint128 = (deps
+        .querier
+        .query_balance(&env.contract.address, config.mint_denom.clone())?)
+    .amount;
 
     let balances: Vec<AddrBal> = BANK_BALANCES
         .range(deps.storage, None, None, Order::Ascending)
@@ -1205,16 +1190,17 @@ fn execute_disburse_funds(
         .unwrap();
 
     //let mut remaining_balance: Uint128 = contract_balance.amount;
-    let mut msgs: Vec<CosmosMsg> = vec![];
+    let mut msgs: Vec<BankMsg> = vec![];
 
     for addr_bal in balances {
         if addr_bal.balance > Uint128::zero() && remaining_balance >= addr_bal.balance {
-            msgs.push(
-                config
-                    .mint_denom
-                    .get_transfer_to_message(&addr_bal.addr.clone(), addr_bal.balance)
-                    .unwrap(),
-            );
+            msgs.push(BankMsg::Send {
+                to_address: addr_bal.addr.to_string(),
+                amount: vec![Coin {
+                    amount: addr_bal.balance,
+                    denom: config.mint_denom.clone(),
+                }],
+            });
 
             remaining_balance -= addr_bal.balance;
             BANK_BALANCES.save(deps.storage, addr_bal.addr, &Uint128::zero())?;
@@ -1299,13 +1285,9 @@ fn validate_uri(uri: String) -> Result<String, ContractError> {
         return Err(ContractError::InvalidBaseTokenURI {});
     }
 
-    // validate url is of ipfs schema
-    let parsed_base_token_uri = Url::parse(&uri)?;
-    if parsed_base_token_uri.scheme() != "ipfs" {
-        Err(ContractError::InvalidBaseTokenURI {})
-    } else {
-        Ok(uri)
-    }
+    // url crate was causing wasm
+
+    Ok(uri)
 }
 
 fn validate_royalties(
@@ -1724,6 +1706,32 @@ fn check_public_mint(deps: Deps, env: Env, info: &MessageInfo) -> Result<bool, C
 // #endregion
 
 // #endregion
+
+/// Follows cosmos SDK validation logic. Specifically, the regex
+/// string `[a-zA-Z][a-zA-Z0-9/:._-]{2,127}`.
+///
+/// <https://github.com/cosmos/cosmos-sdk/blob/7728516abfab950dc7a9120caad4870f1f962df5/types/coin.go#L865-L867>
+pub fn validate_native_denom(denom: String) -> Result<bool, ContractError> {
+    if denom.len() < 3 || denom.len() > 128 {
+        return Err(ContractError::NativeDenomLength { len: denom.len() });
+    }
+    let mut chars = denom.chars();
+    // Really this means that a non utf-8 character is in here, but
+    // non-ascii is also correct.
+    let first = chars.next().ok_or(ContractError::NonAlphabeticAscii)?;
+    if !first.is_ascii_alphabetic() {
+        return Err(ContractError::NonAlphabeticAscii);
+    }
+
+    for c in chars {
+        if !(c.is_ascii_alphanumeric() || c == '/' || c == ':' || c == '.' || c == '_' || c == '-')
+        {
+            return Err(ContractError::InvalidCharacter { c });
+        }
+    }
+
+    Ok(true)
+}
 
 // Reply callback triggered from cw721 contract instantiation
 #[cfg_attr(not(feature = "library"), entry_point)]

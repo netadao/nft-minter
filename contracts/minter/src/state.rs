@@ -1,7 +1,6 @@
 use cosmwasm_schema::cw_serde;
 
 use cosmwasm_std::{Addr, Timestamp, Uint128};
-use cw_denom::CheckedDenom;
 use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
@@ -15,7 +14,7 @@ pub struct Config {
     pub max_per_address_bundle_mint: u32,
     pub mint_price: Uint128,
     pub bundle_mint_price: Uint128,
-    pub mint_denom: CheckedDenom,
+    pub mint_denom: String,
     pub token_code_id: u64,
     pub extension: SharedCollectionInfo,
     pub escrow_funds: bool,

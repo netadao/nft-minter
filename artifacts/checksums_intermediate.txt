@@ -1,3 +1,3 @@
 81433da85adee0bcf59eb2a3d8d8609b0ecfacdca2ac57e88f46cb6dec515424  target/wasm32-unknown-unknown/release/airdropper.wasm
 30c523c2c0b8add9d09ba4f3eeda271ce1d4decbd67193bf3d25dacebe06b35a  target/wasm32-unknown-unknown/release/whitelist.wasm
-7aacbfe482bcee2afe6b82eff19a2f1c28a60010e28853078ae9f3ab798439d2  target/wasm32-unknown-unknown/release/minter.wasm
+01042587e7c78f58116f0f0d80ce0dd2ad202766186226a15dc41e98334662fd  target/wasm32-unknown-unknown/release/minter.wasm

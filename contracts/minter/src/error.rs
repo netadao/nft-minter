@@ -1,10 +1,8 @@
 use cosmwasm_std::{StdError, Uint128};
 use cw721_base::ContractError as Cw721ContractError;
-use cw_denom::CheckedDenom;
 use cw_utils::ParseReplyError;
 use cw_utils::PaymentError;
 use thiserror::Error;
-use url::ParseError;
 
 #[derive(Error, Debug)]
 pub enum ContractError {
@@ -67,7 +65,7 @@ pub enum ContractError {
     },
 
     #[error("Incorrect Payment Amount for token: {token}. Expecting :{amt}")]
-    IncorrectPaymentAmount { token: CheckedDenom, amt: Uint128 },
+    IncorrectPaymentAmount { token: String, amt: Uint128 },
 
     #[error("Invalid mint price")]
     InvalidMintPrice {},
@@ -133,16 +131,19 @@ pub enum ContractError {
     #[error("Single 'Primary' address required")]
     NoRoyalPrimaryAddress {},
 
+    #[error("invalid native denom. length must be between in [3, 128], got ({len})")]
+    NativeDenomLength { len: usize },
+
+    #[error("expected alphabetic ascii character in native denomination")]
+    NonAlphabeticAscii,
+
+    #[error("invalid character ({c}) in native denom")]
+    InvalidCharacter { c: char },
+
     #[error("Custom Error val: {val:?}")]
     CustomError { val: String },
     // Add any other custom errors you like here.
     // Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
-}
-
-impl From<ParseError> for ContractError {
-    fn from(_err: ParseError) -> ContractError {
-        ContractError::InvalidBaseTokenURI {}
-    }
 }
 
 impl From<ContractError> for Cw721ContractError {
