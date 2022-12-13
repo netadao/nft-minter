@@ -224,7 +224,9 @@ pub fn instantiate(
     } else if msg.base_fields.airdropper_address.is_some() {
         AIRDROPPER_ADDR.save(
             deps.storage,
-            &deps.api.addr_validate(&msg.base_fields.airdropper_address.unwrap())?,
+            &deps
+                .api
+                .addr_validate(&msg.base_fields.airdropper_address.unwrap())?,
         )?;
     }
 
@@ -239,7 +241,9 @@ pub fn instantiate(
     } else if msg.base_fields.whitelist_address.is_some() {
         WHITELIST_ADDR.save(
             deps.storage,
-            &deps.api.addr_validate(&msg.base_fields.whitelist_address.unwrap())?,
+            &deps
+                .api
+                .addr_validate(&msg.base_fields.whitelist_address.unwrap())?,
         )?;
     }
 
@@ -606,9 +610,9 @@ fn _execute_mint(
 
     // TODO: add another element of randomness here?
     let (collection_id, token_index) =
-        shuffle_and_draw_mint(deps.as_ref(), &env, info.sender, None)?;
+        randomize_and_draw_mint(deps.as_ref(), &env, info.sender, None)?;
 
-    res = res.add_message(generate_mint_msg(
+    res = res.add_message(process_and_get_mint_msg(
         deps.branch(),
         minter_addr.clone(),
         current_token_supply - 1,
@@ -659,7 +663,7 @@ fn _execute_mint(
     Ok(res)
 }
 
-fn generate_mint_msg(
+fn process_and_get_mint_msg(
     deps: DepsMut,
     minter_addr: Addr,
     new_current_token_supply: u32,
@@ -831,14 +835,14 @@ fn _execute_mint_bundle(
         let collection_current_token_supply =
             COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection.value as u64)?;
 
-        let token_index: u32 = shuffle_and_draw_index(
+        let token_index: u32 = randomize_and_draw_index(
             &env,
             info.sender.clone(),
             collection.value as u64, // collection's id
             collection_current_token_supply,
         )?;
 
-        res = res.add_message(generate_mint_msg(
+        res = res.add_message(process_and_get_mint_msg(
             deps.branch(),
             info.sender.clone(),
             current_token_supply,
@@ -978,7 +982,7 @@ fn execute_airdrop_token_distribution(
     if check_airdropper_mint_res.can_mint {
         for token in check_airdropper_mint_res.remaining_token_ids {
             current_token_supply -= 1;
-            res = res.add_message(generate_mint_msg(
+            res = res.add_message(process_and_get_mint_msg(
                 deps.branch(),
                 minter_addr.clone(),
                 current_token_supply,
@@ -1393,7 +1397,7 @@ fn shuffle_token_ids(
 }
 
 /// base shuffle logic drawn from stargaze's minter
-fn shuffle_and_draw_mint(
+fn randomize_and_draw_mint(
     deps: Deps,
     env: &Env,
     sender: Addr,
@@ -1418,7 +1422,7 @@ fn shuffle_and_draw_mint(
         .unwrap();
 
     // grab a collection id
-    let collection_index_draw: u32 = shuffle_and_draw_index(
+    let collection_index_draw: u32 = randomize_and_draw_index(
         env,
         sender.clone(),
         69u64,
@@ -1433,13 +1437,13 @@ fn shuffle_and_draw_mint(
 
     // grab a collection id
     let index: u32 =
-        shuffle_and_draw_index(env, sender, collection_id, collection_current_token_supply)?;
+        randomize_and_draw_index(env, sender, collection_id, collection_current_token_supply)?;
 
     Ok((collection_id, index))
 }
 
 /// base shuffle logic drawn from stargaze's minter
-fn shuffle_and_draw_index(
+fn randomize_and_draw_index(
     env: &Env,
     sender: Addr,
     collection_id: u64,
