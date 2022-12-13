@@ -8,7 +8,7 @@ use crate::state::{
     CollectionInfo, Config, RoyaltyInfo, SharedCollectionInfo, ADDRESS_MINT_TRACKER,
     AIRDROPPER_ADDR, BANK_BALANCES, BUNDLE_MINT_TRACKER, COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG,
     CURRENT_TOKEN_SUPPLY, CW721_ADDRS, CW721_COLLECTION_INFO, CW721_SHUFFLED_TOKEN_IDS,
-    FEE_COLLECTION_ADDR, TOTAL_TOKEN_SUPPLY, WHITELIST_ADDR,
+    FEE_COLLECTION_ADDR, TOTAL_TOKEN_SUPPLY, WHITELIST_ADDR, CUSTOM_BUNDLE_MINT_TRACKER, CUSTOM_BUNDLE_TOKENS,
 };
 use airdropper::{
     msg::ExecuteMsg::{
@@ -37,6 +37,7 @@ use rand_xoshiro::Xoshiro128PlusPlus;
 use sha2::{Digest, Sha256};
 use shuffle::{fy::FisherYates, shuffler::Shuffler};
 use std::cmp;
+use std::collections::BTreeMap;
 use whitelist::{
     msg::CheckWhitelistResponse,
     msg::ExecuteMsg::{
@@ -191,6 +192,9 @@ pub fn instantiate(
         bundle_enabled: msg.base_fields.bundle_enabled,
         bundle_completed: false,
         bonded_denom,
+        custom_bundle_enabled: false,
+        custom_bundle_completed: false,
+        custom_bundle_price: Uint128::from(1_000_000_000u128) // establishing default price
     };
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -324,6 +328,8 @@ pub fn execute(
             execute_submodule_hook(deps, env, info, target, msg)
         }
         ExecuteMsg::DisburseFunds {} => execute_disburse_funds(deps, env, info),
+        ExecuteMsg::ProcessCustomBundle { price, tokens } => execute_process_custom_bundle(deps, env, info, price, tokens),
+        ExecuteMsg::MintCustomBundle {} => execute_mint_custom_bundle(deps, env, info),
     }
 }
 
@@ -1213,6 +1219,99 @@ fn execute_disburse_funds(
     Ok(Response::default()
         .add_attribute("method", "disburse_funds")
         .add_messages(msgs))
+}
+
+fn execute_process_custom_bundle(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    price: Uint128,
+    tokens: Option<Vec<TokenMsg>>,
+) -> Result<Response, ContractError> {
+
+    Ok(Response::new())
+}
+
+fn execute_mint_custom_bundle(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    // check token supply
+    let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+
+    if current_token_supply == 0 {
+        return Err(ContractError::MintCompleted {});
+    }
+
+    let config = CONFIG.load(deps.storage)?;
+
+    if config.start_time <= env.block.time {
+        return Err(ContractError::BeforeStartTime {});
+    }
+
+    if !config.custom_bundle_enabled {
+        return Err(ContractError::BundleMintDisabled {});
+    }
+
+    if config.custom_bundle_completed {
+        return Err(ContractError::BundleMintCompleted {});
+    }
+
+    let payment = may_pay(&info, &config.mint_denom)?;
+
+    if payment != config.custom_bundle_mint_price {
+        return Err(ContractError::IncorrectPaymentAmount {
+            token: config.mint_denom,
+            amt: config.custom_bundle_mint_price,
+        });
+    }
+
+    if config
+        .end_time
+        .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
+        <= env.block.time
+    {
+        return Err(ContractError::CampaignHasEnded {});
+    }
+
+    let current_custom_bundle_mint_count =
+        (CUSTOM_BUNDLE_MINT_TRACKER.may_load(deps.storage, info.sender.clone())?).unwrap_or(0);
+
+    if current_custom_bundle_mint_count >= config.max_per_address_bundle_mint {
+        return Err(ContractError::BundleMaxMintReached(
+            config.max_per_address_bundle_mint,
+        ));
+    }
+
+    _execute_custom_mint_bundle(deps, env, info)
+}
+
+fn _execute_custom_mint_bundle(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+
+    let custom_bundle_tokens: Vec<(u64, u32)> = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
+
+    // no tokens left so we exit
+    if (custom_bundle_tokens.len() as u32) < config.custom_bundle_content_count {
+        return Err(ContractError::BundleMintCompleted {})
+    }
+
+    let mut tokens_mapped: BTreeMap<(u64, u32), bool> = BTreeMap::new();
+
+    for token in custom_bundle_tokens {
+        tokens_mapped.insert(token, true);
+    }
+
+    for draw in 1..config.custom_bundle_content_count {
+
+    }
+
+    Ok(Response::new())
 }
 
 // #region helper functions
