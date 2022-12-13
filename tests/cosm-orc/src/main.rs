@@ -6,11 +6,9 @@ use cosm_orc::{
     },
     orchestrator::cosm_orc::CosmOrc,
 };
-//use cosmwasm_std::Uint128;
 
 use cosmwasm_std::{Timestamp, Uint128};
 
-use cw_denom::UncheckedDenom;
 use serde_json::Value;
 use std::fs;
 
@@ -46,14 +44,14 @@ fn main() -> Result<()> {
                 max_per_address_bundle_mint: 10000,
                 mint_price: Uint128::from(5_000_000u128),
                 bundle_mint_price: Uint128::from(30_000_000u128),
-                mint_denom: UncheckedDenom::Native("ujunox".to_string()),
+                mint_denom: "ujunox".to_string(),
                 escrow_funds: true,
                 bundle_enabled: false,
+                airdropper_address: None,
+                whitelist_address: None,
             },
             name: "test1".to_string(),
-            airdrop_address: None,
             airdropper_instantiate_info: None,
-            whitelist_address: None,
             whitelist_instantiate_info: None,
             token_code_id: 2,
             collection_infos: vec![CollectionInfoMsg {

@@ -8,7 +8,7 @@ use crate::state::{
     CollectionInfo, Config, RoyaltyInfo, SharedCollectionInfo, ADDRESS_MINT_TRACKER,
     AIRDROPPER_ADDR, BANK_BALANCES, BUNDLE_MINT_TRACKER, COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG,
     CURRENT_TOKEN_SUPPLY, CW721_ADDRS, CW721_COLLECTION_INFO, CW721_SHUFFLED_TOKEN_IDS,
-    FEE_COLLECTION_ADDR, TOKEN_MINTED_BY, TOTAL_TOKEN_SUPPLY, WHITELIST_ADDR,
+    FEE_COLLECTION_ADDR, TOTAL_TOKEN_SUPPLY, WHITELIST_ADDR,
 };
 use airdropper::{
     msg::ExecuteMsg::{
@@ -23,8 +23,8 @@ use airdropper::{
     },
 };
 use cosmwasm_std::{
-    coin, entry_point, to_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo,
-    Order, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    coin, entry_point, to_binary, Addr, BankMsg, Coin, CosmosMsg, Deps, DepsMut, Empty, Env,
+    MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -33,13 +33,10 @@ use cw721_base::{
 };
 use cw_utils::{may_pay, maybe_addr, must_pay, parse_reply_instantiate_data};
 use rand_core::{RngCore, SeedableRng};
-use rand_xoshiro::Xoshiro128StarStar;
+use rand_xoshiro::Xoshiro128PlusPlus;
 use sha2::{Digest, Sha256};
 use shuffle::{fy::FisherYates, shuffler::Shuffler};
 use std::cmp;
-#[cfg(not(feature = "library"))]
-use std::convert::TryInto;
-use url::Url;
 use whitelist::{
     msg::CheckWhitelistResponse,
     msg::ExecuteMsg::{
@@ -48,8 +45,6 @@ use whitelist::{
     },
     msg::QueryMsg as WhitelistQueryMsg,
 };
-
-use cw_denom::CheckedDenom;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:nft-minter";
@@ -146,12 +141,12 @@ pub fn instantiate(
     }
 
     // if both an address and instantiate info are given, then error out
-    if msg.airdrop_address.is_some() && msg.airdropper_instantiate_info.is_some() {
+    if msg.base_fields.airdropper_address.is_some() && msg.airdropper_instantiate_info.is_some() {
         return Err(ContractError::InvalidSubmoduleInstantiation {});
     }
 
     // if both an address and instantiate info are given, then error out
-    if msg.whitelist_address.is_some() && msg.whitelist_instantiate_info.is_some() {
+    if msg.base_fields.whitelist_address.is_some() && msg.whitelist_instantiate_info.is_some() {
         return Err(ContractError::InvalidSubmoduleInstantiation {});
     }
 
@@ -162,18 +157,7 @@ pub fn instantiate(
     // validate the denom the user selected is one that is allowed.
     // cw20 banned
 
-    let checked_denom = msg
-        .base_fields
-        .mint_denom
-        .into_checked(deps.as_ref())
-        .unwrap();
-
-    match checked_denom {
-        CheckedDenom::Native(_) => {}
-        _ => {
-            return Err(ContractError::InvalidPaymentType {});
-        }
-    }
+    validate_native_denom(msg.base_fields.mint_denom.clone())?;
 
     // TODO: add required fee that goes to neta dao's treasury dao OR if the treasury dao
     // is included in rev share then allow this to bypass
@@ -200,7 +184,7 @@ pub fn instantiate(
         max_per_address_bundle_mint: msg.base_fields.max_per_address_bundle_mint,
         mint_price: msg.base_fields.mint_price,
         bundle_mint_price: msg.base_fields.bundle_mint_price,
-        mint_denom: checked_denom,
+        mint_denom: msg.base_fields.mint_denom,
         token_code_id: msg.token_code_id,
         extension: shared_collection_info,
         escrow_funds: msg.base_fields.escrow_funds,
@@ -237,10 +221,10 @@ pub fn instantiate(
             SubMsg::reply_on_success(airdropper_instantiate_msg, INSTANTIATE_AIRDROPPER_REPLY_ID);
 
         sub_msgs.push(airdropper_instantiate_msg);
-    } else if msg.airdrop_address.is_some() {
+    } else if msg.base_fields.airdropper_address.is_some() {
         AIRDROPPER_ADDR.save(
             deps.storage,
-            &deps.api.addr_validate(&msg.airdrop_address.unwrap())?,
+            &deps.api.addr_validate(&msg.base_fields.airdropper_address.unwrap())?,
         )?;
     }
 
@@ -252,10 +236,10 @@ pub fn instantiate(
             SubMsg::reply_on_success(whitelist_instantiate_msg, INSTANTIATE_WHITELIST_REPLY_ID);
 
         sub_msgs.push(whitelist_instantiate_msg);
-    } else if msg.whitelist_address.is_some() {
+    } else if msg.base_fields.whitelist_address.is_some() {
         WHITELIST_ADDR.save(
             deps.storage,
-            &deps.api.addr_validate(&msg.whitelist_address.unwrap())?,
+            &deps.api.addr_validate(&msg.base_fields.whitelist_address.unwrap())?,
         )?;
     }
 
@@ -320,17 +304,11 @@ pub fn execute(
         ExecuteMsg::InitSubmodule(reply_id, module_info) => {
             execute_init_submodule(deps, env, info, reply_id, module_info)
         }
-        ExecuteMsg::UpdateWhitelistAddress(address) => {
-            execute_update_whitelist_address(deps, env, info, address)
-        }
-        ExecuteMsg::UpdateAirdropAddress(address) => {
-            execute_update_airdrop_address(deps, env, info, address)
-        }
-        ExecuteMsg::Mint {} => execute_mint(deps, env, info),
+        ExecuteMsg::Mint {
+            is_promised_mint,
+            minter_address,
+        } => execute_mint(deps, env, info, is_promised_mint, minter_address),
         ExecuteMsg::MintBundle {} => execute_mint_bundle(deps, env, info),
-        ExecuteMsg::AirdropMint { minter_address } => {
-            execute_airdrop_mint(deps, env, info, minter_address)
-        }
         ExecuteMsg::AirdropClaim { minter_address } => {
             execute_airdrop_token_distribution(deps, env, info, minter_address)
         }
@@ -435,17 +413,8 @@ fn execute_update_config(
         config.max_per_address_mint = msg.max_per_address_mint;
     }
 
-    let checked_denom = msg.mint_denom.into_checked(deps.as_ref()).unwrap();
-
-    match checked_denom {
-        CheckedDenom::Native(_) => {}
-        _ => {
-            return Err(ContractError::InvalidPaymentType {});
-        }
-    }
-
-    if checked_denom != config.mint_denom {
-        return Err(ContractError::InvalidPaymentType {});
+    if validate_native_denom(msg.mint_denom.clone())? {
+        config.mint_denom = msg.mint_denom;
     }
 
     if msg.mint_price != config.mint_price {
@@ -479,6 +448,16 @@ fn execute_update_config(
         config.escrow_funds = msg.escrow_funds;
     }
 
+    match maybe_addr(deps.api, msg.airdropper_address)? {
+        Some(addr) => AIRDROPPER_ADDR.save(deps.storage, &addr)?,
+        None => AIRDROPPER_ADDR.remove(deps.storage),
+    }
+
+    match maybe_addr(deps.api, msg.whitelist_address)? {
+        Some(addr) => WHITELIST_ADDR.save(deps.storage, &addr)?,
+        None => WHITELIST_ADDR.remove(deps.storage),
+    }
+
     CONFIG.save(deps.storage, &config)?;
 
     Ok(res
@@ -507,44 +486,14 @@ fn execute_init_submodule(
     }
 }
 
-fn execute_update_whitelist_address(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    address: Option<String>,
-) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info)?;
-
-    match maybe_addr(deps.api, address)? {
-        Some(addr) => WHITELIST_ADDR.save(deps.storage, &addr)?,
-        None => WHITELIST_ADDR.remove(deps.storage),
-    }
-
-    Ok(Response::new()
-        .add_attribute("method", "update_whitelist_address")
-        .add_attribute("sender", info.sender))
-}
-
-fn execute_update_airdrop_address(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    address: Option<String>,
-) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info)?;
-
-    match maybe_addr(deps.api, address)? {
-        Some(addr) => AIRDROPPER_ADDR.save(deps.storage, &addr)?,
-        None => AIRDROPPER_ADDR.remove(deps.storage),
-    }
-
-    Ok(Response::new()
-        .add_attribute("method", "update_whitelist_address")
-        .add_attribute("sender", info.sender))
-}
-
 /// main public/whitelist minting method
-pub fn execute_mint(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+pub fn execute_mint(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    is_airdrop_mint: bool,
+    minter_address: Option<String>,
+) -> Result<Response, ContractError> {
     // check token supply
     let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
 
@@ -566,10 +515,36 @@ pub fn execute_mint(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Respon
 
     let mut mint_price: Uint128 = config.mint_price;
     let mut _mint_type: MintType = MintType::None;
-    let mut _can_mint: bool = false;
 
+    let minter_addr: Addr =
+        (maybe_addr(deps.api, minter_address)?).unwrap_or_else(|| info.sender.clone());
+
+    if is_airdrop_mint {
+        if minter_addr != info.sender
+            && config.admin != info.sender
+            && config.maintainer_addr != Some(info.sender.clone())
+        {
+            return Err(ContractError::Unauthorized {});
+        }
+
+        // check the address' promised mints
+        let check_airdropper_mint_res = check_airdrop_promises(
+            deps.as_ref(),
+            &info,
+            MintType::PromisedMint,
+            minter_addr.clone(),
+        )?;
+
+        if check_airdropper_mint_res.can_mint {
+            // if mint eligible, execute mint (probably 0 token mint fee)
+            _mint_type = MintType::PromisedMint;
+            mint_price = check_airdropper_mint_res.mint_price.unwrap();
+        } else {
+            return Err(ContractError::NoPromisedMints {});
+        }
+    }
     // if start time has NOT occurred then assess whitelist criteria, otherwise check public mint
-    if env.block.time < config.start_time {
+    else if env.block.time < config.start_time {
         // if this user is whitelist eligible via `can_mint` then we'll allow them through
         // else we error out as it is before start time of campaign
         let check_wl = check_whitelist(deps.as_ref(), &info)?;
@@ -580,81 +555,28 @@ pub fn execute_mint(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Respon
 
             _mint_type = MintType::Whitelist;
             mint_price = check_wl.mint_price.unwrap();
-            _can_mint = check_wl.can_mint;
         } else {
             return Err(ContractError::BeforeStartTime {});
         }
     } else {
         // if this user has public mints left then we allow them through
-        let check_public_mint = check_public_mint(deps.as_ref(), env.clone(), &info)?;
-        if check_public_mint {
-            _can_mint = check_public_mint;
+        if check_public_mint(deps.as_ref(), env.clone(), &info)? {
             _mint_type = MintType::Public;
         }
     }
 
-    if _can_mint {
-        let minter_addr: Addr = info.sender.clone();
+    println!("{:?}", 1);
+
+    if _mint_type != MintType::None {
         return _execute_mint(deps, env, info, _mint_type, mint_price, minter_addr);
     }
 
     Err(ContractError::UnableToMint {})
 }
 
-/// Airdrop Promised mint method
-fn execute_airdrop_mint(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    minter_address: Option<String>,
-) -> Result<Response, ContractError> {
-    // check token supply
-    let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
-
-    if current_token_supply == 0 {
-        return Err(ContractError::MintCompleted {});
-    }
-
-    // establish minter address. if no `minter_address` is provided, then we default to sender
-    let minter_addr: Addr =
-        (maybe_addr(deps.api, minter_address)?).unwrap_or_else(|| info.sender.clone());
-
-    let config = CONFIG.load(deps.storage)?;
-
-    // allow admin or maintainer to also execute this would allow for a push and pulls of airdrops
-    if minter_addr != info.sender
-        && config.admin != info.sender
-        && config.maintainer_addr != Some(info.sender.clone())
-    {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // check the address' promised mints
-    let check_airdropper_mint_res = check_airdrop_promises(
-        deps.as_ref(),
-        &info,
-        MintType::PromisedMint,
-        minter_addr.clone(),
-    )?;
-
-    // if mint eligible, execute mint (probably 0 token mint fee)
-    if check_airdropper_mint_res.can_mint {
-        _execute_mint(
-            deps,
-            _env,
-            info,
-            MintType::PromisedMint,
-            check_airdropper_mint_res.mint_price.unwrap(),
-            minter_addr,
-        )
-    } else {
-        Err(ContractError::NoPromisedMints {})
-    }
-}
-
 /// method that finalizes the mint and generates the submessages
 fn _execute_mint(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     mint_type: MintType,
@@ -671,7 +593,7 @@ fn _execute_mint(
     let config = CONFIG.load(deps.storage)?;
 
     // check payment
-    let payment = may_pay(&info, &config.mint_denom.to_string())?;
+    let payment = may_pay(&info, &config.mint_denom)?;
 
     if payment != mint_price {
         return Err(ContractError::IncorrectPaymentAmount {
@@ -680,46 +602,20 @@ fn _execute_mint(
         });
     }
 
+    let mut res = Response::new();
+
     // TODO: add another element of randomness here?
     let (collection_id, token_index) =
         shuffle_and_draw_mint(deps.as_ref(), &env, info.sender, None)?;
 
-    let mut collection_token_ids: Vec<u32> =
-        CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection_id)?;
-    let token_id: u32 = collection_token_ids[token_index as usize];
-    collection_token_ids.retain(|&x| x != token_id);
-
-    // Create mint msgs
-    let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, collection_id)?;
-
-    let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
-        Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
-            token_id: token_id.to_string(),
-            owner: minter_addr.clone().into_string(),
-            token_uri: Some(format!("{}/{}", coll_info.base_token_uri, token_id)),
-            extension: config.extension,
-        });
-
-    let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
-
-    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: token_address.into_string(),
-        msg: to_binary(&mint_msg)?,
-        funds: vec![],
-    });
-
-    let mut res = Response::new().add_message(msg);
-
-    CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
-
-    CURRENT_TOKEN_SUPPLY.save(deps.storage, &(current_token_supply - 1))?;
-    let collection_current_token_supply =
-        COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection_id)?;
-    COLLECTION_CURRENT_TOKEN_SUPPLY.save(
-        deps.storage,
+    res = res.add_message(generate_mint_msg(
+        deps.branch(),
+        minter_addr.clone(),
+        current_token_supply - 1,
         collection_id,
-        &(collection_current_token_supply - 1),
-    )?;
+        None,
+        Some(token_index),
+    )?);
 
     match mint_type {
         MintType::Public => {
@@ -763,6 +659,76 @@ fn _execute_mint(
     Ok(res)
 }
 
+fn generate_mint_msg(
+    deps: DepsMut,
+    minter_addr: Addr,
+    new_current_token_supply: u32,
+    collection_id: u64,
+    mut token_id: Option<u32>,
+    token_index: Option<u32>,
+) -> Result<CosmosMsg, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+
+    let mut collection_token_ids: Vec<u32> =
+        CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection_id)?;
+
+    match token_id {
+        Some(_) => {}
+        None => {
+            token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
+        }
+    }
+
+    // Create mint msgs
+    let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, collection_id)?;
+
+    let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
+        Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+            token_id: token_id.unwrap().to_string(),
+            owner: minter_addr.into_string(),
+            token_uri: Some(format!(
+                "{}/{}",
+                coll_info.base_token_uri,
+                token_id.unwrap()
+            )),
+            extension: config.extension.clone(),
+        });
+
+    let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
+
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: token_address.into_string(),
+        msg: to_binary(&mint_msg)?,
+        funds: vec![],
+    });
+
+    // if maintainer already cleared out the queue, then this wont be necessary
+    if collection_token_ids.contains(&token_id.unwrap()) {
+        collection_token_ids.retain(|&x| x != token_id.unwrap());
+        CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
+    }
+
+    CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
+
+    let collection_current_token_supply =
+        COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection_id)?;
+    let new_collection_current_token_supply = collection_current_token_supply - 1;
+    COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+        deps.storage,
+        collection_id,
+        &new_collection_current_token_supply,
+    )?;
+
+    if new_collection_current_token_supply == 0 {
+        config.bundle_completed = true;
+        CONFIG.save(deps.storage, &config)?;
+    }
+
+    CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
+
+    Ok(msg)
+}
+
 fn execute_mint_bundle(
     deps: DepsMut,
     env: Env,
@@ -777,8 +743,38 @@ fn execute_mint_bundle(
 
     let config = CONFIG.load(deps.storage)?;
 
-    // ensure campaign has not ended
-    // TODO: move to optional?
+    if !config.bundle_enabled {
+        return Err(ContractError::BundleMintDisabled {});
+    }
+
+    if config.bundle_completed {
+        return Err(ContractError::BundleMintCompleted {});
+    } else {
+        let collection_supplies: Vec<u32> = COLLECTION_CURRENT_TOKEN_SUPPLY
+            .range(deps.storage, None, None, Order::Ascending)
+            .map(|item| {
+                let (_, supply) = item?;
+                Ok(supply)
+            })
+            .collect::<StdResult<Vec<u32>>>()
+            .unwrap();
+
+        for supply in collection_supplies {
+            if supply == 0 {
+                return Err(ContractError::BundleMintCompleted {});
+            }
+        }
+    }
+
+    let payment = may_pay(&info, &config.mint_denom)?;
+
+    if payment != config.bundle_mint_price {
+        return Err(ContractError::IncorrectPaymentAmount {
+            token: config.mint_denom,
+            amt: config.bundle_mint_price,
+        });
+    }
+
     if config
         .end_time
         .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
@@ -786,40 +782,6 @@ fn execute_mint_bundle(
     {
         return Err(ContractError::CampaignHasEnded {});
     }
-
-    let mint_price: Uint128 = config.bundle_mint_price;
-    let mut _mint_type: MintType = MintType::None;
-    let mut _can_mint: bool = false;
-
-    // if this user has public mints left then we allow them through
-    let check_public_mint_bundle = check_public_mint_bundle(deps.as_ref(), env.clone(), &info)?;
-    if check_public_mint_bundle {
-        _can_mint = check_public_mint_bundle;
-        _mint_type = MintType::Public;
-    }
-
-    if _can_mint {
-        return _execute_mint_bundle(deps, env, info, mint_price);
-    }
-
-    Err(ContractError::UnableToMint {})
-}
-
-/// method that finalizes the mint and generates the submessages
-fn _execute_mint_bundle(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    mint_price: Uint128,
-) -> Result<Response, ContractError> {
-    // check supply
-    let mut current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
-
-    if current_token_supply == 0 {
-        return Err(ContractError::MintCompleted {});
-    }
-
-    let mut config = CONFIG.load(deps.storage)?;
 
     let current_bundle_mint_count =
         (BUNDLE_MINT_TRACKER.may_load(deps.storage, info.sender.clone())?).unwrap_or(0);
@@ -829,15 +791,22 @@ fn _execute_mint_bundle(
             config.max_per_address_bundle_mint,
         ));
     }
-    // check payment
-    let payment = may_pay(&info, &config.mint_denom.to_string())?;
 
-    if payment != mint_price {
-        return Err(ContractError::IncorrectPaymentAmount {
-            token: config.mint_denom,
-            amt: mint_price,
-        });
+    if config.start_time <= env.block.time {
+        return _execute_mint_bundle(deps, env, info, current_token_supply);
     }
+
+    Err(ContractError::UnableToMint {})
+}
+
+/// method that finalizes the mint and generates the submessages
+fn _execute_mint_bundle(
+    mut deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    mut current_token_supply: u32,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
 
     // address - address
     // value - collection_id
@@ -856,13 +825,11 @@ fn _execute_mint_bundle(
     let mut res: Response = Response::new();
 
     for collection in collections {
+        current_token_supply -= 1;
         println!("collection.value {:?}", collection.value);
 
-        let mut collection_current_token_supply =
+        let collection_current_token_supply =
             COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection.value as u64)?;
-
-        let mut collection_token_ids: Vec<u32> =
-            CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection.value as u64)?;
 
         let token_index: u32 = shuffle_and_draw_index(
             &env,
@@ -871,71 +838,28 @@ fn _execute_mint_bundle(
             collection_current_token_supply,
         )?;
 
-        let coll_info: CollectionInfo =
-            CW721_COLLECTION_INFO.load(deps.storage, collection.value as u64)?;
-
-        let token_id = collection_token_ids[token_index as usize];
-
-        let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
-            Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
-                token_id: token_id.to_string(),
-                owner: info.sender.clone().into_string(),
-                token_uri: Some(format!("{}/{}", coll_info.base_token_uri, token_id)),
-                extension: config.extension.clone(),
-            });
-
-        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: collection.address,
-            msg: to_binary(&mint_msg)?,
-            funds: vec![],
-        });
-
-        res = res.add_message(msg);
-
-        // remove token id from
-        println!("$$$$ 2 index:{:?}-token_id:{:?}", token_index, token_id);
-        collection_token_ids.retain(|&x| x != token_id);
-        CW721_SHUFFLED_TOKEN_IDS.save(
-            deps.storage,
+        res = res.add_message(generate_mint_msg(
+            deps.branch(),
+            info.sender.clone(),
+            current_token_supply,
             collection.value as u64,
-            &collection_token_ids,
-        )?;
-
-        collection_current_token_supply -= 1;
-
-        COLLECTION_CURRENT_TOKEN_SUPPLY.save(
-            deps.storage,
-            collection.value as u64,
-            &(collection_current_token_supply),
-        )?;
-
-        if collection_current_token_supply == 0 {
-            config.bundle_completed = true;
-            CONFIG.save(deps.storage, &config)?;
-        }
-
-        current_token_supply -= 1;
-        TOKEN_MINTED_BY.save(
-            deps.storage,
-            format!("{:?}:{:?}", collection.value, token_id),
-            &info.sender.clone(),
-        )?;
+            None,
+            Some(token_index),
+        )?);
     }
-
-    CURRENT_TOKEN_SUPPLY.save(deps.storage, &current_token_supply)?;
 
     let current_bundle_mint_count =
         (BUNDLE_MINT_TRACKER.may_load(deps.storage, info.sender.clone())?).unwrap_or(0);
 
     BUNDLE_MINT_TRACKER.save(deps.storage, info.sender, &(current_bundle_mint_count + 1))?;
 
-    res = disburse_or_escrow_funds(deps, res, mint_price)?;
+    res = disburse_or_escrow_funds(deps, res, config.bundle_mint_price)?;
 
     Ok(res)
 }
 
 fn disburse_or_escrow_funds(
-    deps: DepsMut,
+    mut deps: DepsMut,
     mut res: Response,
     mint_price: Uint128,
 ) -> Result<Response, ContractError> {
@@ -966,49 +890,63 @@ fn disburse_or_escrow_funds(
 
                 remaining_mint_amount -= amt;
 
-                if config.escrow_funds {
-                    let balance = (BANK_BALANCES.may_load(deps.storage, royalty.addr.clone())?)
-                        .unwrap_or(Uint128::zero());
-
-                    BANK_BALANCES.save(deps.storage, royalty.addr.clone(), &(balance + amt))?;
-                } else {
-                    let msg = config
-                        .mint_denom
-                        .get_transfer_to_message(&royalty.addr.clone(), amt)?;
-
-                    res = res.add_message(msg);
-                }
+                res = _disburse_or_escrow_funds(
+                    deps.branch(),
+                    res,
+                    config.escrow_funds,
+                    royalty.addr.clone(),
+                    amt,
+                    config.mint_denom.clone(),
+                )?;
             }
         }
 
         if remaining_mint_amount > Uint128::zero() {
-            if config.escrow_funds {
-                let balance = (BANK_BALANCES
-                    .may_load(deps.storage, primary_royalty_addr.clone().unwrap())?)
-                .unwrap_or(Uint128::zero());
-
-                BANK_BALANCES.save(
-                    deps.storage,
-                    primary_royalty_addr.unwrap(),
-                    &(balance + remaining_mint_amount),
-                )?;
-            } else {
-                let msg = config.mint_denom.get_transfer_to_message(
-                    &primary_royalty_addr.unwrap(),
-                    remaining_mint_amount,
-                )?;
-
-                res = res.add_message(msg);
-            }
+            res = _disburse_or_escrow_funds(
+                deps.branch(),
+                res,
+                config.escrow_funds,
+                primary_royalty_addr.unwrap(),
+                remaining_mint_amount,
+                config.mint_denom,
+            )?;
         }
     }
 
     Ok(res)
 }
 
-fn execute_airdrop_token_distribution(
+fn _disburse_or_escrow_funds(
     deps: DepsMut,
-    env: Env,
+    mut res: Response,
+    escrow_funds: bool,
+    royalty_addr: Addr,
+    amount: Uint128,
+    mint_denom: String,
+) -> Result<Response, ContractError> {
+    if escrow_funds {
+        let balance = (BANK_BALANCES.may_load(deps.storage, royalty_addr.clone())?)
+            .unwrap_or(Uint128::zero());
+
+        BANK_BALANCES.save(deps.storage, royalty_addr, &(balance + amount))?;
+    } else {
+        let msg = BankMsg::Send {
+            to_address: royalty_addr.to_string(),
+            amount: vec![Coin {
+                amount,
+                denom: mint_denom,
+            }],
+        };
+
+        res = res.add_message(msg);
+    }
+
+    Ok(res)
+}
+
+fn execute_airdrop_token_distribution(
+    mut deps: DepsMut,
+    _env: Env,
     info: MessageInfo,
     minter_address: Option<String>,
 ) -> Result<Response, ContractError> {
@@ -1017,6 +955,11 @@ fn execute_airdrop_token_distribution(
         (maybe_addr(deps.api, minter_address)?).unwrap_or_else(|| info.sender.clone());
 
     let config = CONFIG.load(deps.storage)?;
+    let mut current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+    let airdropper_addr = AIRDROPPER_ADDR.load(deps.storage)?;
+
+    let mut res: Response = Response::new();
+
     if minter_addr != info.sender
         && config.admin != info.sender
         && config.maintainer_addr != Some(info.sender.clone())
@@ -1033,99 +976,36 @@ fn execute_airdrop_token_distribution(
     )?;
 
     if check_airdropper_mint_res.can_mint {
-        _execute_claim_by_token_id(
-            deps,
-            env,
-            info,
-            minter_addr,
-            check_airdropper_mint_res.remaining_token_ids,
-        )
+        for token in check_airdropper_mint_res.remaining_token_ids {
+            current_token_supply -= 1;
+            res = res.add_message(generate_mint_msg(
+                deps.branch(),
+                minter_addr.clone(),
+                current_token_supply,
+                token.collection_id,
+                Some(token.token_id),
+                None,
+            )?);
+
+            let update_msg = AD_MarkTokenIDClaimed(AD_AddressTokenMsg {
+                address: minter_addr.to_string(),
+                token: AD_TokenMsg {
+                    collection_id: token.collection_id,
+                    token_id: token.token_id,
+                },
+            });
+
+            res = res.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: airdropper_addr.clone().into_string(),
+                msg: to_binary(&update_msg)?,
+                funds: vec![],
+            }));
+        }
+
+        Ok(res)
     } else {
         Err(ContractError::NoPromisedMints {})
     }
-}
-
-fn _execute_claim_by_token_id(
-    deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    minter_addr: Addr,
-    tokens: Vec<TokenMsg>,
-) -> Result<Response, ContractError> {
-    if tokens.is_empty() {
-        return Err(ContractError::NoPromisedMints {});
-    }
-
-    let config = CONFIG.load(deps.storage)?;
-    let mut res: Response = Response::new();
-
-    for token in tokens {
-        let collection_current_token_supply =
-            COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, token.collection_id)?;
-
-        // this is an error and we'll need to go remove it
-        if token.token_id > collection_current_token_supply {
-        } else {
-            let mut ids: Vec<u32> =
-                CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, token.collection_id)?;
-
-            // if maintainer already cleared out the queue, then this wont be necessary
-            if ids.contains(&token.token_id) {
-                ids.retain(|&x| x != token.token_id);
-                CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, token.collection_id, &ids)?;
-            }
-
-            let coll_info: CollectionInfo =
-                CW721_COLLECTION_INFO.load(deps.storage, token.collection_id)?;
-            let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
-
-            // Create mint msgs
-            let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
-                Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
-                    token_id: token.token_id.to_string(),
-                    owner: minter_addr.to_string(),
-                    token_uri: Some(format!("{}/{}", coll_info.base_token_uri, token.token_id)),
-                    extension: config.extension.clone(),
-                });
-            let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token_address.to_string(),
-                msg: to_binary(&mint_msg)?,
-                funds: vec![],
-            });
-
-            res = res.add_message(msg);
-
-            let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
-            CURRENT_TOKEN_SUPPLY.save(deps.storage, &(current_token_supply - 1))?;
-
-            COLLECTION_CURRENT_TOKEN_SUPPLY.save(
-                deps.storage,
-                token.collection_id,
-                &(collection_current_token_supply - 1),
-            )?;
-        }
-
-        let airdropper_addr = AIRDROPPER_ADDR.load(deps.storage)?;
-
-        let claim_msg: AD_AddressTokenMsg = AD_AddressTokenMsg {
-            address: minter_addr.to_string(),
-            token: AD_TokenMsg {
-                collection_id: token.collection_id,
-                token_id: token.token_id,
-            },
-        };
-
-        let update_msg = AD_MarkTokenIDClaimed(claim_msg);
-        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: airdropper_addr.into_string(),
-            msg: to_binary(&update_msg)?,
-            funds: vec![],
-        });
-
-        res = res.add_message(msg);
-    }
-
-    Ok(res)
 }
 
 fn execute_clean_claimed_tokens_from_shuffle(
@@ -1295,10 +1175,10 @@ fn execute_disburse_funds(
         return Err(ContractError::Unauthorized {});
     }
 
-    let mut remaining_balance: Uint128 = config
-        .mint_denom
-        .query_balance(&deps.querier, &env.contract.address)
-        .unwrap();
+    let mut remaining_balance: Uint128 = (deps
+        .querier
+        .query_balance(&env.contract.address, config.mint_denom.clone())?)
+    .amount;
 
     let balances: Vec<AddrBal> = BANK_BALANCES
         .range(deps.storage, None, None, Order::Ascending)
@@ -1310,16 +1190,17 @@ fn execute_disburse_funds(
         .unwrap();
 
     //let mut remaining_balance: Uint128 = contract_balance.amount;
-    let mut msgs: Vec<CosmosMsg> = vec![];
+    let mut msgs: Vec<BankMsg> = vec![];
 
     for addr_bal in balances {
         if addr_bal.balance > Uint128::zero() && remaining_balance >= addr_bal.balance {
-            msgs.push(
-                config
-                    .mint_denom
-                    .get_transfer_to_message(&addr_bal.addr.clone(), addr_bal.balance)
-                    .unwrap(),
-            );
+            msgs.push(BankMsg::Send {
+                to_address: addr_bal.addr.to_string(),
+                amount: vec![Coin {
+                    amount: addr_bal.balance,
+                    denom: config.mint_denom.clone(),
+                }],
+            });
 
             remaining_balance -= addr_bal.balance;
             BANK_BALANCES.save(deps.storage, addr_bal.addr, &Uint128::zero())?;
@@ -1404,13 +1285,9 @@ fn validate_uri(uri: String) -> Result<String, ContractError> {
         return Err(ContractError::InvalidBaseTokenURI {});
     }
 
-    // validate url is of ipfs schema
-    let parsed_base_token_uri = Url::parse(&uri)?;
-    if parsed_base_token_uri.scheme() != "ipfs" {
-        Err(ContractError::InvalidBaseTokenURI {})
-    } else {
-        Ok(uri)
-    }
+    // url crate was causing wasm
+
+    Ok(uri)
 }
 
 fn validate_royalties(
@@ -1505,7 +1382,7 @@ fn shuffle_token_ids(
     );
     // Cut first 16 bytes from 32 byte value
     let randomness: [u8; 16] = sha256.to_vec()[0..16].try_into().unwrap();
-    let mut rng = Xoshiro128StarStar::from_seed(randomness);
+    let mut rng = Xoshiro128PlusPlus::from_seed(randomness);
     let mut shuffler = FisherYates::default();
 
     shuffler
@@ -1587,7 +1464,7 @@ fn shuffle_and_draw_index(
 
     // Cut first 16 bytes from 32 byte value
     let randomness: [u8; 16] = sha256.to_vec()[0..16].try_into().unwrap();
-    let mut rng = Xoshiro128StarStar::from_seed(randomness);
+    let mut rng = Xoshiro128PlusPlus::from_seed(randomness);
 
     let r = rng.next_u32();
 
@@ -1826,77 +1703,35 @@ fn check_public_mint(deps: Deps, env: Env, info: &MessageInfo) -> Result<bool, C
     Ok(can_mint)
 }
 
-fn check_public_mint_bundle(
-    deps: Deps,
-    env: Env,
-    info: &MessageInfo,
-) -> Result<bool, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-    let mut can_mint: bool = false;
+// #endregion
 
-    if !config.bundle_enabled {
-        return Err(ContractError::BundleMintDisabled {});
+// #endregion
+
+/// Follows cosmos SDK validation logic. Specifically, the regex
+/// string `[a-zA-Z][a-zA-Z0-9/:._-]{2,127}`.
+///
+/// <https://github.com/cosmos/cosmos-sdk/blob/7728516abfab950dc7a9120caad4870f1f962df5/types/coin.go#L865-L867>
+pub fn validate_native_denom(denom: String) -> Result<bool, ContractError> {
+    if denom.len() < 3 || denom.len() > 128 {
+        return Err(ContractError::NativeDenomLength { len: denom.len() });
+    }
+    let mut chars = denom.chars();
+    // Really this means that a non utf-8 character is in here, but
+    // non-ascii is also correct.
+    let first = chars.next().ok_or(ContractError::NonAlphabeticAscii)?;
+    if !first.is_ascii_alphabetic() {
+        return Err(ContractError::NonAlphabeticAscii);
     }
 
-    if config.bundle_completed {
-        return Err(ContractError::BundleMintCompleted {});
-    } else {
-        let collection_supplies: Vec<u32> = COLLECTION_CURRENT_TOKEN_SUPPLY
-            .range(deps.storage, None, None, Order::Ascending)
-            .map(|item| {
-                let (_, supply) = item?;
-                Ok(supply)
-            })
-            .collect::<StdResult<Vec<u32>>>()
-            .unwrap();
-
-        for supply in collection_supplies {
-            if supply == 0 {
-                return Err(ContractError::BundleMintCompleted {});
-            }
+    for c in chars {
+        if !(c.is_ascii_alphanumeric() || c == '/' || c == ':' || c == '.' || c == '_' || c == '-')
+        {
+            return Err(ContractError::InvalidCharacter { c });
         }
     }
 
-    if env.block.time < config.start_time {
-        return Err(ContractError::BeforeStartTime {});
-    }
-
-    if config
-        .end_time
-        .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
-        <= env.block.time
-    {
-        return Err(ContractError::CampaignHasEnded {});
-    }
-
-    if config.start_time <= env.block.time
-        && env.block.time
-            < config
-                .end_time
-                .unwrap_or_else(|| env.block.time.plus_nanos(1u64))
-    {
-        can_mint = true;
-    }
-
-    let current_mint_bundle_count =
-        (BUNDLE_MINT_TRACKER.may_load(deps.storage, info.sender.clone())?).unwrap_or(0);
-
-    if current_mint_bundle_count >= config.max_per_address_bundle_mint {
-        return Err(ContractError::BundleMaxMintReached(
-            config.max_per_address_bundle_mint,
-        ));
-    }
-
-    Ok(can_mint)
+    Ok(true)
 }
-
-// #endregion
-
-// #region funds
-
-//fn send_funds()
-
-// #endregion
 
 // Reply callback triggered from cw721 contract instantiation
 #[cfg_attr(not(feature = "library"), entry_point)]

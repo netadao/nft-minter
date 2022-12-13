@@ -10,9 +10,7 @@ mod tests {
         coin, coins, to_binary, Addr, Coin, CosmosMsg, Empty, Timestamp, Uint128, WasmMsg,
     };
 
-    use cw_denom::UncheckedDenom;
     use cw_multi_test::{App, AppBuilder, BankSudo, Contract, ContractWrapper, Executor, SudoMsg};
-    use prost::Message;
 
     use whitelist::{
         msg::ConfigResponse as WhitelistConfig, msg::ExecuteMsg as WhitelistExecuteMsg,
@@ -30,15 +28,6 @@ mod tests {
         },
         state::Config as AirdropperConfig,
     };
-
-    // Type for replies to contract instantiate messes
-    #[derive(Clone, PartialEq, Message)]
-    struct MsgInstantiateContractResponse {
-        #[prost(string, tag = "1")]
-        pub contract_address: ::prost::alloc::string::String,
-        #[prost(bytes, tag = "2")]
-        pub data: ::prost::alloc::vec::Vec<u8>,
-    }
 
     pub fn contract_template() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new(
@@ -106,10 +95,6 @@ mod tests {
 
     const MAX_PER_ADDRESS_MINT: u32 = 4;
     //const MAX_TOKEN_SUPPLY: u32 = 5;
-
-    fn unchecked_denom() -> UncheckedDenom {
-        UncheckedDenom::Native(NATIVE_DENOM.to_string())
-    }
 
     fn mock_app() -> App {
         AppBuilder::new().build(|router, _, storage| {
@@ -239,13 +224,13 @@ mod tests {
                 max_per_address_mint: MAX_PER_ADDRESS_MINT,
                 mint_price: Uint128::from(MINT_PRICE),
                 bundle_mint_price: Uint128::from(BUNDLE_MINT_PRICE),
-                mint_denom: unchecked_denom(),
+                mint_denom: NATIVE_DENOM.to_owned(),
                 escrow_funds: false,
                 max_per_address_bundle_mint: 3000,
                 bundle_enabled: bundle,
+                airdropper_address: None,
+                whitelist_address: None,
             },
-            whitelist_address: None,
-            airdrop_address: None,
             token_code_id: cw721_id,
             name: "TESTNFTPROJECT".to_string(),
             airdropper_instantiate_info: airdropper_module_instantiate,
@@ -431,13 +416,13 @@ mod tests {
                 max_per_address_mint: MAX_PER_ADDRESS_MINT,
                 mint_price: Uint128::from(MINT_PRICE),
                 bundle_mint_price: Uint128::from(BUNDLE_MINT_PRICE),
-                mint_denom: unchecked_denom(),
+                mint_denom: NATIVE_DENOM.to_owned(),
                 escrow_funds: false,
                 max_per_address_bundle_mint: 1,
                 bundle_enabled: bundle,
+                airdropper_address: None,
+                whitelist_address: None,
             },
-            whitelist_address: None,
-            airdrop_address: None,
             token_code_id: cw721_id,
             name: "TESTNFTPROJECT".to_string(),
             airdropper_instantiate_info: airdropper_module_instantiate,
@@ -672,6 +657,14 @@ mod tests {
                 .clone()
                 .map(|addr| addr.into_string());
 
+            let airdropper_address: Option<String> = config
+                .airdropper_addr
+                .clone()
+                .map(|addr| addr.into_string());
+
+            let whitelist_address: Option<String> =
+                config.whitelist_addr.clone().map(|addr| addr.into_string());
+
             let mut msg: BaseInitMsg = BaseInitMsg {
                 maintainer_address,
                 start_time: config.start_time,
@@ -680,9 +673,11 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: unchecked_denom(),
+                mint_denom: NATIVE_DENOM.to_owned(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
+                airdropper_address,
+                whitelist_address,
             };
 
             assert_eq!(
@@ -846,7 +841,10 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(USER25),
                 cw_template_contract.addr(),
-                &ExecuteMsg::Mint {},
+                &ExecuteMsg::Mint {
+                    is_promised_mint: false,
+                    minter_address: None,
+                },
                 &[coin(2_000_000, NATIVE_DENOM)],
             )
             .unwrap();
@@ -2319,7 +2317,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2338,7 +2339,10 @@ mod tests {
             println!("###config {:?}", config);
 
             // not yet block time
-            let msg = ExecuteMsg::Mint {};
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
 
             app.update_block(|mut block| {
                 block.time = Timestamp::from_seconds(WHITELIST_START_TIME)
@@ -2367,7 +2371,10 @@ mod tests {
             println!("###config {:?}", config);
 
             // not yet block time
-            let msg = ExecuteMsg::Mint {};
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
 
             app.update_block(|mut block| {
                 block.time = Timestamp::from_seconds(WHITELIST_END_TIME + 1)
@@ -2427,7 +2434,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER2),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2479,7 +2489,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER2),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2571,7 +2584,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_001, NATIVE_DENOM)],
                 )
                 .unwrap();
@@ -2631,7 +2647,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
@@ -2643,7 +2662,10 @@ mod tests {
                     .execute_contract(
                         Addr::unchecked(USER10),
                         cw_template_contract.addr(),
-                        &ExecuteMsg::Mint {},
+                        &ExecuteMsg::Mint {
+                            is_promised_mint: false,
+                            minter_address: None,
+                        },
                         &[coin(1_000_000, NATIVE_DENOM)],
                     )
                     .unwrap();
@@ -2653,7 +2675,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER10),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2676,7 +2701,10 @@ mod tests {
                     .execute_contract(
                         Addr::unchecked(USER25),
                         cw_template_contract.addr(),
-                        &ExecuteMsg::Mint {},
+                        &ExecuteMsg::Mint {
+                            is_promised_mint: false,
+                            minter_address: None,
+                        },
                         &[coin(1_000_000, NATIVE_DENOM)],
                     )
                     .unwrap();
@@ -2686,7 +2714,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2748,7 +2779,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
@@ -2760,7 +2794,10 @@ mod tests {
                     .execute_contract(
                         Addr::unchecked(USER10),
                         cw_template_contract.addr(),
-                        &ExecuteMsg::Mint {},
+                        &ExecuteMsg::Mint {
+                            is_promised_mint: false,
+                            minter_address: None,
+                        },
                         &[coin(1_000_000, NATIVE_DENOM)],
                     )
                     .unwrap();
@@ -2770,7 +2807,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER10),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2791,7 +2831,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
@@ -2824,7 +2867,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2837,7 +2883,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2846,7 +2895,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(2_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
@@ -2855,7 +2907,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(2_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2875,6 +2930,14 @@ mod tests {
                 .clone()
                 .map(|addr| addr.into_string());
 
+            let airdropper_address: Option<String> = config
+                .airdropper_addr
+                .clone()
+                .map(|addr| addr.into_string());
+
+            let whitelist_address: Option<String> =
+                config.whitelist_addr.clone().map(|addr| addr.into_string());
+
             let mut msg: BaseInitMsg = BaseInitMsg {
                 maintainer_address,
                 start_time: config.start_time,
@@ -2883,9 +2946,11 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
+                mint_denom: config.mint_denom.to_string(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
+                airdropper_address,
+                whitelist_address,
             };
 
             msg.escrow_funds = true;
@@ -2919,7 +2984,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
@@ -2931,7 +2999,10 @@ mod tests {
                     .execute_contract(
                         Addr::unchecked(USER10),
                         cw_template_contract.addr(),
-                        &ExecuteMsg::Mint {},
+                        &ExecuteMsg::Mint {
+                            is_promised_mint: false,
+                            minter_address: None,
+                        },
                         &[coin(1_000_000, NATIVE_DENOM)],
                     )
                     .unwrap();
@@ -2941,7 +3012,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER10),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -2962,7 +3036,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
@@ -2995,7 +3072,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -3008,7 +3088,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(1_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -3017,7 +3100,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(2_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
@@ -3026,7 +3112,10 @@ mod tests {
                 .execute_contract(
                     Addr::unchecked(USER25),
                     cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {},
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
                     &[coin(2_000_000, NATIVE_DENOM)],
                 )
                 .unwrap_err();
@@ -3110,7 +3199,7 @@ mod tests {
 
             let contract_balance: Coin = app
                 .wrap()
-                .query_balance(&cw_template_contract.addr(), config.mint_denom.to_string())
+                .query_balance(&cw_template_contract.addr(), config.mint_denom)
                 .unwrap();
             assert_eq!(contract_balance.amount, Uint128::zero());
             println!("contract_balance {:?}", contract_balance);
@@ -3741,9 +3830,11 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
+                mint_denom: config.mint_denom.to_string(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
+                airdropper_address: None,
+                whitelist_address: None,
             };
 
             // removed end time
@@ -3757,7 +3848,10 @@ mod tests {
             .unwrap();
 
             // not yet block time
-            let msg = ExecuteMsg::Mint {};
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
 
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
 
@@ -3910,9 +4004,11 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
+                mint_denom: config.mint_denom.to_string(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
+                airdropper_address: None,
+                whitelist_address: None,
             };
 
             // removed end time
@@ -3926,7 +4022,10 @@ mod tests {
             .unwrap();
 
             // not yet block time
-            let msg = ExecuteMsg::Mint {};
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
 
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
             app.update_block(|mut block| block.height += 1);
@@ -4057,7 +4156,10 @@ mod tests {
             println!("###config {:?}", config);
 
             // not yet block time
-            let msg = ExecuteMsg::Mint {};
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
 
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
 
@@ -4095,7 +4197,10 @@ mod tests {
             println!("###config {:?}", config);
 
             // not yet block time
-            let msg = ExecuteMsg::Mint {};
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
 
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
 
@@ -4142,7 +4247,10 @@ mod tests {
             println!("###config {:?}", config);
 
             // not yet block time
-            let msg = ExecuteMsg::Mint {};
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
 
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
 
@@ -4236,7 +4344,10 @@ mod tests {
             println!("###config {:?}", config);
 
             // not yet block time
-            let msg = ExecuteMsg::Mint {};
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
 
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
 
@@ -4575,9 +4686,11 @@ mod tests {
                 max_per_address_bundle_mint: config.max_per_address_bundle_mint,
                 mint_price: config.mint_price,
                 bundle_mint_price: config.bundle_mint_price,
-                mint_denom: UncheckedDenom::Native(config.mint_denom.to_string()),
+                mint_denom: config.mint_denom.to_string(),
                 escrow_funds: false,
                 bundle_enabled: config.bundle_enabled,
+                airdropper_address: None,
+                whitelist_address: None,
             };
 
             msg.max_per_address_mint = 40000;
@@ -4636,7 +4749,10 @@ mod tests {
 
             println!("per_collection_supplies {:?}", per_collection_supplies);
 
-            let msg = ExecuteMsg::Mint {};
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
 
             for _ in 0u32..=5 {
                 // 5987

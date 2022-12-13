@@ -41,7 +41,7 @@
         "add_promised_token_i_ds": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/AddressValMsg"
+            "$ref": "#/definitions/AddressTokenMsg"
           }
         }
       },
@@ -57,9 +57,7 @@
         "remove_promised_token_i_ds": {
           "type": "array",
           "items": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0.0
+            "$ref": "#/definitions/TokenMsg"
           }
         }
       },
@@ -121,19 +119,7 @@
       ],
       "properties": {
         "mark_token_i_d_claimed": {
-          "type": "array",
-          "items": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            }
-          ],
-          "maxItems": 2,
-          "minItems": 2
+          "$ref": "#/definitions/AddressTokenMsg"
         }
       },
       "additionalProperties": false
@@ -153,6 +139,29 @@
     }
   ],
   "definitions": {
+    "AddressTokenMsg": {
+      "description": "Used as execution msg and query response for single Address-TokenMsg pairs eg address is promised collection_id 3's token_id 8",
+      "type": "object",
+      "required": [
+        "address",
+        "token"
+      ],
+      "properties": {
+        "address": {
+          "description": "address for the promised values",
+          "type": "string"
+        },
+        "token": {
+          "description": "promised token_id OR promised mint count",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TokenMsg"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "AddressValMsg": {
       "description": "Used as execution msg and query response for single Address-Value pairs eg address is promised token_id 8 or address is promised 3 mints or token_id 6 was minted by address: \"juno1addr\"",
       "type": "object",
@@ -171,7 +180,8 @@
           "format": "uint32",
           "minimum": 0.0
         }
-      }
+      },
+      "additionalProperties": false
     },
     "InstantiateMsg": {
       "description": "General Instantiation message. also used to pass updates for the config",
@@ -199,7 +209,8 @@
         "start_time": {
           "$ref": "#/definitions/Timestamp"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "Timestamp": {
       "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
@@ -208,6 +219,29 @@
           "$ref": "#/definitions/Uint64"
         }
       ]
+    },
+    "TokenMsg": {
+      "description": "Used as query response for single collection_id-token_id pairs",
+      "type": "object",
+      "required": [
+        "collection_id",
+        "token_id"
+      ],
+      "properties": {
+        "collection_id": {
+          "description": "address for the promised values",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "token_id": {
+          "description": "promised token_id",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     },
     "Uint64": {
       "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",

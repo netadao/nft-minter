@@ -1,25 +1,55 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "GetAddressPromisedTokenIDsResponse",
-  "description": "Response object used to return a list of `token_id`s promised/claimed by an address",
-  "type": "object",
-  "required": [
-    "address",
-    "token_ids"
-  ],
-  "properties": {
-    "address": {
-      "description": "address for the promised values",
-      "type": "string"
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/AddressPromisedTokensResponse"
+  },
+  "definitions": {
+    "AddressPromisedTokensResponse": {
+      "description": "Response object used to return a list of `token_id`s promised/claimed by an address",
+      "type": "object",
+      "required": [
+        "address",
+        "token_ids"
+      ],
+      "properties": {
+        "address": {
+          "description": "address for the promised values",
+          "type": "string"
+        },
+        "token_ids": {
+          "description": "list of token_ids promised to an address",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TokenMsg"
+          }
+        }
+      },
+      "additionalProperties": false
     },
-    "token_ids": {
-      "description": "list of token_ids promised to an address",
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "format": "uint32",
-        "minimum": 0.0
-      }
+    "TokenMsg": {
+      "description": "Used as query response for single collection_id-token_id pairs",
+      "type": "object",
+      "required": [
+        "collection_id",
+        "token_id"
+      ],
+      "properties": {
+        "collection_id": {
+          "description": "address for the promised values",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "token_id": {
+          "description": "promised token_id",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

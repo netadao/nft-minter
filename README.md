@@ -19,6 +19,43 @@ cargo fmt
 cargo test
 ```
 
+```
+cosmwasm-ts-codegen generate \
+    --plugin client \
+    --schema ./contracts/airdropper/schema \
+    --out ./ts \
+    --name Airdropper \
+    --no-bundle
+cosmwasm-ts-codegen generate \
+    --plugin client \
+    --schema ./contracts/minter/schema \
+    --out ./ts \
+    --name Minter \
+    --no-bundle
+cosmwasm-ts-codegen generate \
+    --plugin client \
+    --schema ./contracts/whitelist/schema \
+    --out ./ts \
+    --name Whitelist \
+    --no-bundle
+
+docker run --rm -v "$(pwd)":/code \
+		--mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+		--mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+		--platform linux/amd64 \
+		cosmwasm/workspace-optimizer:0.12.10
+```
+
+Misc notes:
+
+```
+sudo docker cp ./artifacts/minter.wasm juno_node_1:/opt/minter.wasm
+sudo docker exec -i juno_node_1 junod tx wasm store /opt/minter.wasm \
+    --gas-prices 0.1ujunox --gas auto --gas-adjustment 1.3 \
+    -y -b block --chain-id testing \
+    --from localnet --output json 
+```
+
 ### References and credits
 
 Leveraging open source work, some code and inspiration may have come from these repos:
