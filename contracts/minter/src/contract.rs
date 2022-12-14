@@ -965,6 +965,8 @@ fn execute_clean_claimed_tokens_from_shuffle(
 ) -> Result<Response, ContractError> {
     check_can_update(deps.as_ref(), &env, &info)?;
 
+    let config = CONFIG.load(deps.storage)?;
+
     if let Some(addr) = AIRDROPPER_ADDR.may_load(deps.storage)? {
         let assigned_token_ids: Vec<AD_TokenMsg> = deps.querier.query_wasm_smart(
             addr,
@@ -988,6 +990,16 @@ fn execute_clean_claimed_tokens_from_shuffle(
                 msg.collection_id,
                 &(collection_current_token_supply - 1),
             )?;
+
+            if config.custom_bundle_enabled {
+                let mut custom_bundle_tokens =
+                    (CUSTOM_BUNDLE_TOKENS.may_load(deps.storage)?).unwrap_or_default();
+
+                if !custom_bundle_tokens.is_empty() {
+                    custom_bundle_tokens.retain(|&x| x != (msg.collection_id, msg.token_id));
+                    CUSTOM_BUNDLE_TOKENS.save(deps.storage, &custom_bundle_tokens)?;
+                }
+            }
         }
 
         Ok(Response::new()
@@ -1232,10 +1244,16 @@ fn execute_process_custom_bundle(
 }
 
 fn execute_mint_custom_bundle(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
+    let mut current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+
+    if current_token_supply == 0 {
+        return Err(ContractError::MintCompleted {});
+    }
+    let mut res = Response::new();
     let config = CONFIG.load(deps.storage)?;
 
     if env.block.time < config.start_time {
@@ -1248,15 +1266,6 @@ fn execute_mint_custom_bundle(
 
     if config.custom_bundle_completed {
         return Err(ContractError::BundleMintCompleted {});
-    }
-
-    let payment = may_pay(&info, &config.mint_denom)?;
-
-    if payment != config.custom_bundle_mint_price {
-        return Err(ContractError::IncorrectPaymentAmount {
-            token: config.mint_denom,
-            amt: config.custom_bundle_mint_price,
-        });
     }
 
     if config
@@ -1276,21 +1285,14 @@ fn execute_mint_custom_bundle(
         ));
     }
 
-    _execute_custom_mint_bundle(deps, env, info)
-}
+    let payment = may_pay(&info, &config.mint_denom)?;
 
-fn _execute_custom_mint_bundle(
-    mut deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-) -> Result<Response, ContractError> {
-    let mut current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
-
-    if current_token_supply == 0 {
-        return Err(ContractError::MintCompleted {});
+    if payment != config.custom_bundle_mint_price {
+        return Err(ContractError::IncorrectPaymentAmount {
+            token: config.mint_denom,
+            amt: config.custom_bundle_mint_price,
+        });
     }
-
-    let config = CONFIG.load(deps.storage)?;
 
     let mut custom_bundle_tokens: Vec<(u64, u32)> = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
     let mut tokens_to_be_minted: Vec<(u64, u32)> = vec![];
@@ -1301,13 +1303,49 @@ fn _execute_custom_mint_bundle(
         return Err(ContractError::BundleMintCompleted {});
     }
 
-    for draw in 1..=config.custom_bundle_content_count as u64 {
-        let index = randomize_and_draw_index(
-            &env,
-            info.sender.clone(),
-            draw,
+    let tx_index = if let Some(tx) = &env.transaction {
+        tx.index
+    } else {
+        0
+    };
+
+    let sha256 = Sha256::digest(
+        format!(
+            "{}{}{}{}",
+            info.sender,
+            env.block.height,
             custom_bundle_tokens.len() as u32,
-        )?;
+            tx_index
+        )
+        .into_bytes(),
+    );
+
+    // Cut first 16 bytes from 32 byte value
+    let randomness: [u8; 16] = sha256.to_vec()[0..16].try_into().unwrap();
+    let mut rng = Xoshiro128PlusPlus::from_seed(randomness);
+
+    for _ in 1..=config.custom_bundle_content_count as u64 {
+        let r = rng.next_u32();
+
+        let mut rem = 50;
+        if rem > custom_bundle_tokens.len() as u32 {
+            rem = custom_bundle_tokens.len() as u32;
+        }
+        let n = r % rem;
+
+        // pull either front or go near back of vec
+        let mut index: u32 = match r % 2 {
+            1 => n,
+            _ => (custom_bundle_tokens.len() as u32) - n,
+        };
+
+        // push index_id down to a 0 based index for the array
+        // bound should be 0..(vec_length - 1)
+        if index >= custom_bundle_tokens.len() as u32 {
+            index = (custom_bundle_tokens.len() as u32) - 1;
+        } else if index > 0 {
+            index -= 1;
+        }
 
         let token = custom_bundle_tokens[index as usize];
         tokens_to_be_minted.push(token);
@@ -1330,10 +1368,42 @@ fn _execute_custom_mint_bundle(
 
     CUSTOM_BUNDLE_TOKENS.save(deps.storage, &custom_bundle_tokens)?;
 
-    Ok(Response::new().add_messages(msgs))
+    res = disburse_or_escrow_funds(deps, res, config.custom_bundle_mint_price)?;
+
+    Ok(res.add_messages(msgs))
 }
 
 // #region helper functions
+
+fn validate_tokens(deps: Deps, tokens: Vec<TokenMsg>) -> Result<bool, ContractError> {
+    let mut map: BTreeMap<u64, CollectionInfo> = BTreeMap::new();
+
+    for token in tokens {
+        if let std::collections::btree_map::Entry::Vacant(_e) = map.entry(token.collection_id) {
+            let coll_info = CW721_COLLECTION_INFO.may_load(deps.storage, token.collection_id)?;
+
+            match coll_info {
+                Some(info) => {
+                    map.insert(token.collection_id, info);
+                }
+                None => return Err(ContractError::InvalidCollectionToken {}),
+            }
+        }
+
+        let _coll_info = map.get(&token.collection_id).unwrap();
+
+        if token.token_id > _coll_info.token_supply {
+            return Err(ContractError::InvalidCollectionToken {});
+        }
+    }
+
+    Ok(true)
+}
+
+struct ValidateCollectionInfoResponse {
+    pub collection_infos: Vec<CollectionInfo>,
+    pub total_token_supply: u32,
+}
 
 fn process_and_get_mint_msg(
     deps: DepsMut,
@@ -1411,107 +1481,6 @@ fn process_and_get_mint_msg(
 
     Ok(msg)
 }
-
-fn validate_tokens(deps: Deps, tokens: Vec<TokenMsg>) -> Result<bool, ContractError> {
-    let mut map: BTreeMap<u64, CollectionInfo> = BTreeMap::new();
-
-    for token in tokens {
-        if let std::collections::btree_map::Entry::Vacant(_e) = map.entry(token.collection_id) {
-            let coll_info = CW721_COLLECTION_INFO.may_load(deps.storage, token.collection_id)?;
-
-            match coll_info {
-                Some(info) => {
-                    map.insert(token.collection_id, info);
-                }
-                None => return Err(ContractError::InvalidCollectionToken {}),
-            }
-        }
-
-        let _coll_info = map.get(&token.collection_id).unwrap();
-
-        if token.token_id > _coll_info.token_supply {
-            return Err(ContractError::InvalidCollectionToken {});
-        }
-    }
-
-    Ok(true)
-}
-
-struct ValidateCollectionInfoResponse {
-    pub collection_infos: Vec<CollectionInfo>,
-    pub total_token_supply: u32,
-}
-
-fn process_and_get_mint_msg(
-    deps: DepsMut,
-    minter_addr: Addr,
-    new_current_token_supply: u32,
-    collection_id: u64,
-    mut token_id: Option<u32>,
-    token_index: Option<u32>,
-) -> Result<CosmosMsg, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-
-    let mut collection_token_ids: Vec<u32> =
-        CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection_id)?;
-
-    match token_id {
-        Some(_) => {}
-        None => {
-            token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
-        }
-    }
-
-    // Create mint msgs
-    let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, collection_id)?;
-
-    let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
-        Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
-            token_id: token_id.unwrap().to_string(),
-            owner: minter_addr.into_string(),
-            token_uri: Some(format!(
-                "{}/{}",
-                coll_info.base_token_uri,
-                token_id.unwrap()
-            )),
-            extension: config.extension.clone(),
-        });
-
-    let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
-
-    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: token_address.into_string(),
-        msg: to_binary(&mint_msg)?,
-        funds: vec![],
-    });
-
-    // if maintainer already cleared out the queue, then this wont be necessary
-    if collection_token_ids.contains(&token_id.unwrap()) {
-        collection_token_ids.retain(|&x| x != token_id.unwrap());
-        CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
-    }
-
-    CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
-
-    let collection_current_token_supply =
-        COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection_id)?;
-    let new_collection_current_token_supply = collection_current_token_supply - 1;
-    COLLECTION_CURRENT_TOKEN_SUPPLY.save(
-        deps.storage,
-        collection_id,
-        &new_collection_current_token_supply,
-    )?;
-
-    if new_collection_current_token_supply == 0 {
-        config.bundle_completed = true;
-        CONFIG.save(deps.storage, &config)?;
-    }
-
-    CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
-
-    Ok(msg)
-}
-
 
 fn validate_collection_info(
     _deps: Deps,
