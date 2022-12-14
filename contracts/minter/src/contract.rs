@@ -7,8 +7,9 @@ use crate::msg::{
 use crate::state::{
     CollectionInfo, Config, RoyaltyInfo, SharedCollectionInfo, ADDRESS_MINT_TRACKER,
     AIRDROPPER_ADDR, BANK_BALANCES, BUNDLE_MINT_TRACKER, COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG,
-    CURRENT_TOKEN_SUPPLY, CW721_ADDRS, CW721_COLLECTION_INFO, CW721_SHUFFLED_TOKEN_IDS,
-    FEE_COLLECTION_ADDR, TOTAL_TOKEN_SUPPLY, WHITELIST_ADDR, CUSTOM_BUNDLE_MINT_TRACKER, CUSTOM_BUNDLE_TOKENS,
+    CURRENT_TOKEN_SUPPLY, CUSTOM_BUNDLE_MINT_TRACKER, CUSTOM_BUNDLE_TOKENS, CW721_ADDRS,
+    CW721_COLLECTION_INFO, CW721_SHUFFLED_TOKEN_IDS, FEE_COLLECTION_ADDR, TOTAL_TOKEN_SUPPLY,
+    WHITELIST_ADDR,
 };
 use airdropper::{
     msg::ExecuteMsg::{
@@ -37,7 +38,7 @@ use rand_xoshiro::Xoshiro128PlusPlus;
 use sha2::{Digest, Sha256};
 use shuffle::{fy::FisherYates, shuffler::Shuffler};
 use std::cmp;
-use std::collections::BTreeMap;
+
 use whitelist::{
     msg::CheckWhitelistResponse,
     msg::ExecuteMsg::{
@@ -194,7 +195,8 @@ pub fn instantiate(
         bonded_denom,
         custom_bundle_enabled: false,
         custom_bundle_completed: false,
-        custom_bundle_price: Uint128::from(1_000_000_000u128) // establishing default price
+        custom_bundle_mint_price: Uint128::from(1_000_000_000u128), // establishing default price
+        custom_bundle_content_count: 1,
     };
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -328,7 +330,14 @@ pub fn execute(
             execute_submodule_hook(deps, env, info, target, msg)
         }
         ExecuteMsg::DisburseFunds {} => execute_disburse_funds(deps, env, info),
-        ExecuteMsg::ProcessCustomBundle { price, tokens } => execute_process_custom_bundle(deps, env, info, price, tokens),
+        ExecuteMsg::ProcessCustomBundle {
+            mint_price,
+            content_count,
+            tokens,
+            purge,
+        } => {
+            execute_process_custom_bundle(deps, env, info, mint_price, content_count, tokens, purge)
+        }
         ExecuteMsg::MintCustomBundle {} => execute_mint_custom_bundle(deps, env, info),
     }
 }
@@ -1155,9 +1164,43 @@ fn execute_process_custom_bundle(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    price: Uint128,
+    mint_price: Uint128,
+    content_count: u32,
     tokens: Option<Vec<TokenMsg>>,
+    purge: bool,
 ) -> Result<Response, ContractError> {
+    check_can_update(deps.as_ref(), &env, &info)?;
+
+    let mut config = CONFIG.load(deps.storage)?;
+
+    if purge {
+        CUSTOM_BUNDLE_TOKENS.remove(deps.storage);
+        config.custom_bundle_enabled = false;
+    } else {
+        let mut new_custom_bundle_tokens: Vec<(u64, u32)> = vec![];
+
+        if let Some(tokes) = tokens {
+            let indexes = shuffle_token_ids(
+                &env,
+                info.sender,
+                (0..=((tokes.len() as u32) - 1)).collect::<Vec<u32>>(),
+                69u64,
+            )?;
+
+            for id in indexes {
+                let token = &tokes[id as usize];
+                new_custom_bundle_tokens.push((token.collection_id, token.token_id));
+            }
+
+            CUSTOM_BUNDLE_TOKENS.save(deps.storage, &new_custom_bundle_tokens)?;
+        }
+
+        config.custom_bundle_mint_price = mint_price;
+        config.custom_bundle_content_count = content_count;
+        config.custom_bundle_enabled = true;
+    }
+
+    CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new())
 }
@@ -1167,13 +1210,6 @@ fn execute_mint_custom_bundle(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    // check token supply
-    let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
-
-    if current_token_supply == 0 {
-        return Err(ContractError::MintCompleted {});
-    }
-
     let config = CONFIG.load(deps.storage)?;
 
     if config.start_time <= env.block.time {
@@ -1218,30 +1254,54 @@ fn execute_mint_custom_bundle(
 }
 
 fn _execute_custom_mint_bundle(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
+    let mut current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+
+    if current_token_supply == 0 {
+        return Err(ContractError::MintCompleted {});
+    }
+
     let config = CONFIG.load(deps.storage)?;
 
-    let custom_bundle_tokens: Vec<(u64, u32)> = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
+    let mut custom_bundle_tokens: Vec<(u64, u32)> = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
+    let mut tokens_to_be_minted: Vec<(u64, u32)> = vec![];
+    let mut msgs: Vec<CosmosMsg> = vec![];
 
     // no tokens left so we exit
     if (custom_bundle_tokens.len() as u32) < config.custom_bundle_content_count {
-        return Err(ContractError::BundleMintCompleted {})
+        return Err(ContractError::BundleMintCompleted {});
     }
 
-    let mut tokens_mapped: BTreeMap<(u64, u32), bool> = BTreeMap::new();
+    for draw in 1..config.custom_bundle_content_count as u64 {
+        let index = randomize_and_draw_index(
+            &env,
+            info.sender.clone(),
+            draw,
+            custom_bundle_tokens.len() as u32,
+        )?;
 
-    for token in custom_bundle_tokens {
-        tokens_mapped.insert(token, true);
+        let token = custom_bundle_tokens[index as usize];
+        tokens_to_be_minted.push(token);
+        custom_bundle_tokens.retain(|&x| x != token);
+
+        current_token_supply -= 1;
+
+        msgs.push(process_and_get_mint_msg(
+            deps.branch(),
+            info.sender.clone(),
+            current_token_supply,
+            token.0,
+            Some(token.1),
+            None,
+        )?);
     }
 
-    for draw in 1..config.custom_bundle_content_count {
+    CUSTOM_BUNDLE_TOKENS.save(deps.storage, &custom_bundle_tokens)?;
 
-    }
-
-    Ok(Response::new())
+    Ok(Response::new().add_messages(msgs))
 }
 
 // #region helper functions

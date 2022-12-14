@@ -184,9 +184,10 @@ pub enum ExecuteMsg {
     /// Allows an admin/maintainer to disburse funds in escrow
     DisburseFunds {},
     ProcessCustomBundle {
-        tokens: Option<Vec<TokenMsg>>,
         content_count: u32,
-        price: Uint128
+        mint_price: Uint128,
+        tokens: Option<Vec<TokenMsg>>,
+        purge: bool,
     },
     MintCustomBundle {},
 }
