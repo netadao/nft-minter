@@ -6,8 +6,8 @@ use cw_utils::maybe_addr;
 use crate::msg::{AddrBal, AddressValMsg, ConfigResponse, QueryMsg, TokenDataResponse};
 use crate::state::{
     CollectionInfo, ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES, BUNDLE_MINT_TRACKER,
-    COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG, CURRENT_TOKEN_SUPPLY, CW721_ADDRS,
-    CW721_COLLECTION_INFO, WHITELIST_ADDR,
+    COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG, CURRENT_TOKEN_SUPPLY, CUSTOM_BUNDLE_TOKENS,
+    CW721_ADDRS, CW721_COLLECTION_INFO, WHITELIST_ADDR,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -34,6 +34,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         ),
         QueryMsg::GetRemainingTokens {} => query_get_remaining_tokens(deps, env),
         QueryMsg::GetCW721Addrs {} => query_get_cw721_addrs(deps, env),
+        QueryMsg::GetCustomBundle {} => query_get_custom_bundle(deps, env),
     }
 }
 
@@ -59,6 +60,10 @@ fn query_config(deps: Deps, _env: Env) -> StdResult<ConfigResponse> {
         extension: config.extension,
         bundle_enabled: config.bundle_enabled,
         bundle_completed: config.bundle_completed,
+        custom_bundle_enabled: config.custom_bundle_enabled,
+        custom_bundle_completed: config.custom_bundle_completed,
+        custom_bundle_mint_price: config.custom_bundle_mint_price,
+        custom_bundle_content_count: config.custom_bundle_content_count,
     })
 }
 
@@ -212,4 +217,10 @@ fn query_get_collection_current_supply(
         .collect::<StdResult<Vec<_>>>();
 
     Ok(tokens.unwrap())
+}
+
+fn query_get_custom_bundle(deps: Deps, _env: Env) -> StdResult<Binary> {
+    let tokens = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
+
+    to_binary(&tokens)
 }

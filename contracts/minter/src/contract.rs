@@ -38,6 +38,7 @@ use rand_xoshiro::Xoshiro128PlusPlus;
 use sha2::{Digest, Sha256};
 use shuffle::{fy::FisherYates, shuffler::Shuffler};
 use std::cmp;
+use std::collections::BTreeMap;
 
 use whitelist::{
     msg::CheckWhitelistResponse,
@@ -1254,6 +1255,8 @@ fn execute_process_custom_bundle(
                 69u64,
             )?;
 
+            validate_tokens(deps.as_ref(), tokes.clone())?;
+
             for id in indexes {
                 let token = &tokes[id as usize];
                 new_custom_bundle_tokens.push((token.collection_id, token.token_id));
@@ -1272,6 +1275,31 @@ fn execute_process_custom_bundle(
     Ok(Response::new())
 }
 
+fn validate_tokens(deps: Deps, tokens: Vec<TokenMsg>) -> Result<bool, ContractError> {
+    let mut map: BTreeMap<u64, CollectionInfo> = BTreeMap::new();
+
+    for token in tokens {
+        if let std::collections::btree_map::Entry::Vacant(_e) = map.entry(token.collection_id) {
+            let coll_info = CW721_COLLECTION_INFO.may_load(deps.storage, token.collection_id)?;
+
+            match coll_info {
+                Some(info) => {
+                    map.insert(token.collection_id, info);
+                }
+                None => return Err(ContractError::InvalidCollectionToken {}),
+            }
+        }
+
+        let _coll_info = map.get(&token.collection_id).unwrap();
+
+        if token.token_id > _coll_info.token_supply {
+            return Err(ContractError::InvalidCollectionToken {});
+        }
+    }
+
+    Ok(true)
+}
+
 fn execute_mint_custom_bundle(
     deps: DepsMut,
     env: Env,
@@ -1279,7 +1307,7 @@ fn execute_mint_custom_bundle(
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
 
-    if config.start_time <= env.block.time {
+    if env.block.time < config.start_time {
         return Err(ContractError::BeforeStartTime {});
     }
 
@@ -1342,7 +1370,7 @@ fn _execute_custom_mint_bundle(
         return Err(ContractError::BundleMintCompleted {});
     }
 
-    for draw in 1..config.custom_bundle_content_count as u64 {
+    for draw in 1..=config.custom_bundle_content_count as u64 {
         let index = randomize_and_draw_index(
             &env,
             info.sender.clone(),
@@ -1352,10 +1380,13 @@ fn _execute_custom_mint_bundle(
 
         let token = custom_bundle_tokens[index as usize];
         tokens_to_be_minted.push(token);
+
+        // removes token from custom bundle list and saved at the end
         custom_bundle_tokens.retain(|&x| x != token);
 
         current_token_supply -= 1;
 
+        // this will remove these tokens from the main lists
         msgs.push(process_and_get_mint_msg(
             deps.branch(),
             info.sender.clone(),
