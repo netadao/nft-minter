@@ -679,73 +679,6 @@ fn _execute_mint(
     Ok(res)
 }
 
-fn process_and_get_mint_msg(
-    deps: DepsMut,
-    minter_addr: Addr,
-    new_current_token_supply: u32,
-    collection_id: u64,
-    mut token_id: Option<u32>,
-    token_index: Option<u32>,
-) -> Result<CosmosMsg, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-
-    let mut collection_token_ids: Vec<u32> =
-        CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection_id)?;
-
-    if token_id.is_none() {
-        token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
-    }
-
-    // Create mint msgs
-    let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, collection_id)?;
-
-    let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
-        Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
-            token_id: token_id.unwrap().to_string(),
-            owner: minter_addr.into_string(),
-            token_uri: Some(format!(
-                "{}/{}",
-                coll_info.base_token_uri,
-                token_id.unwrap()
-            )),
-            extension: config.extension.clone(),
-        });
-
-    let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
-
-    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: token_address.into_string(),
-        msg: to_binary(&mint_msg)?,
-        funds: vec![],
-    });
-
-    // if maintainer already cleared out the queue, then this wont be necessary
-    if collection_token_ids.contains(&token_id.unwrap()) {
-        collection_token_ids.retain(|&x| x != token_id.unwrap());
-        CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
-    }
-
-    CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
-
-    let collection_current_token_supply =
-        COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection_id)?;
-    let new_collection_current_token_supply = collection_current_token_supply - 1;
-    COLLECTION_CURRENT_TOKEN_SUPPLY.save(
-        deps.storage,
-        collection_id,
-        &new_collection_current_token_supply,
-    )?;
-
-    if new_collection_current_token_supply == 0 {
-        config.bundle_completed = true;
-        CONFIG.save(deps.storage, &config)?;
-    }
-
-    CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
-
-    Ok(msg)
-}
-
 fn execute_mint_bundle(
     deps: DepsMut,
     env: Env,
@@ -1131,6 +1064,29 @@ fn execute_shuffle_token_order(
         CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &shuffled_token_ids)?;
     }
 
+    if config.custom_bundle_enabled {
+        let custom_bundle_tokens =
+            (CUSTOM_BUNDLE_TOKENS.may_load(deps.storage)?).unwrap_or_default();
+
+        if !custom_bundle_tokens.is_empty() {
+            let mut new_custom_bundle_tokens: Vec<(u64, u32)> = vec![];
+
+            let indexes = shuffle_token_ids(
+                &env,
+                info.sender.clone(),
+                (0..=((custom_bundle_tokens.len() as u32) - 1)).collect::<Vec<u32>>(),
+                69u64,
+            )?;
+
+            for id in indexes {
+                let token = &custom_bundle_tokens[id as usize];
+                new_custom_bundle_tokens.push((token.0, token.1));
+            }
+
+            CUSTOM_BUNDLE_TOKENS.save(deps.storage, &new_custom_bundle_tokens)?;
+        }
+    }
+
     Ok(res
         .add_attribute("method", "shuffle_token_order")
         .add_attribute("sender", info.sender))
@@ -1275,31 +1231,6 @@ fn execute_process_custom_bundle(
     Ok(Response::new())
 }
 
-fn validate_tokens(deps: Deps, tokens: Vec<TokenMsg>) -> Result<bool, ContractError> {
-    let mut map: BTreeMap<u64, CollectionInfo> = BTreeMap::new();
-
-    for token in tokens {
-        if let std::collections::btree_map::Entry::Vacant(_e) = map.entry(token.collection_id) {
-            let coll_info = CW721_COLLECTION_INFO.may_load(deps.storage, token.collection_id)?;
-
-            match coll_info {
-                Some(info) => {
-                    map.insert(token.collection_id, info);
-                }
-                None => return Err(ContractError::InvalidCollectionToken {}),
-            }
-        }
-
-        let _coll_info = map.get(&token.collection_id).unwrap();
-
-        if token.token_id > _coll_info.token_supply {
-            return Err(ContractError::InvalidCollectionToken {});
-        }
-    }
-
-    Ok(true)
-}
-
 fn execute_mint_custom_bundle(
     deps: DepsMut,
     env: Env,
@@ -1403,6 +1334,108 @@ fn _execute_custom_mint_bundle(
 }
 
 // #region helper functions
+
+fn process_and_get_mint_msg(
+    deps: DepsMut,
+    minter_addr: Addr,
+    new_current_token_supply: u32,
+    collection_id: u64,
+    mut token_id: Option<u32>,
+    token_index: Option<u32>,
+) -> Result<CosmosMsg, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+
+    let mut collection_token_ids: Vec<u32> =
+        CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection_id)?;
+
+    if token_id.is_none() {
+        token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
+    }
+
+    // Create mint msgs
+    let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, collection_id)?;
+
+    let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
+        Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+            token_id: token_id.unwrap().to_string(),
+            owner: minter_addr.into_string(),
+            token_uri: Some(format!(
+                "{}/{}",
+                coll_info.base_token_uri,
+                token_id.unwrap()
+            )),
+            extension: config.extension.clone(),
+        });
+
+    let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
+
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: token_address.into_string(),
+        msg: to_binary(&mint_msg)?,
+        funds: vec![],
+    });
+
+    // if maintainer already cleared out the queue, then this wont be necessary
+    if collection_token_ids.contains(&token_id.unwrap()) {
+        collection_token_ids.retain(|&x| x != token_id.unwrap());
+        CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
+    }
+
+    CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
+
+    let collection_current_token_supply =
+        COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection_id)?;
+    let new_collection_current_token_supply = collection_current_token_supply - 1;
+    COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+        deps.storage,
+        collection_id,
+        &new_collection_current_token_supply,
+    )?;
+
+    if new_collection_current_token_supply == 0 {
+        config.bundle_completed = true;
+        CONFIG.save(deps.storage, &config)?;
+    }
+
+    CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
+
+    if config.custom_bundle_enabled {
+        let mut custom_bundle_tokens =
+            (CUSTOM_BUNDLE_TOKENS.may_load(deps.storage)?).unwrap_or_default();
+
+        if !custom_bundle_tokens.is_empty() {
+            custom_bundle_tokens.retain(|&x| x != (collection_id, token_id.unwrap()));
+            CUSTOM_BUNDLE_TOKENS.save(deps.storage, &custom_bundle_tokens)?;
+        }
+    }
+
+    Ok(msg)
+}
+
+fn validate_tokens(deps: Deps, tokens: Vec<TokenMsg>) -> Result<bool, ContractError> {
+    let mut map: BTreeMap<u64, CollectionInfo> = BTreeMap::new();
+
+    for token in tokens {
+        if let std::collections::btree_map::Entry::Vacant(_e) = map.entry(token.collection_id) {
+            let coll_info = CW721_COLLECTION_INFO.may_load(deps.storage, token.collection_id)?;
+
+            match coll_info {
+                Some(info) => {
+                    map.insert(token.collection_id, info);
+                }
+                None => return Err(ContractError::InvalidCollectionToken {}),
+            }
+        }
+
+        let _coll_info = map.get(&token.collection_id).unwrap();
+
+        if token.token_id > _coll_info.token_supply {
+            return Err(ContractError::InvalidCollectionToken {});
+        }
+    }
+
+    Ok(true)
+}
 
 struct ValidateCollectionInfoResponse {
     pub collection_infos: Vec<CollectionInfo>,
