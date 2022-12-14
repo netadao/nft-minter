@@ -4710,7 +4710,7 @@ mod tests {
             let (mut app, cw_template_contract) =
                 proper_instantiate(true, true, true, Some(3), Some(3000));
 
-                app.update_block(|mut block| block.height += 1);
+            app.update_block(|mut block| block.height += 1);
 
             let msg = ExecuteMsg::ProcessCustomBundle {
                 content_count: 5u32,
