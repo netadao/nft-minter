@@ -663,76 +663,6 @@ fn _execute_mint(
     Ok(res)
 }
 
-fn process_and_get_mint_msg(
-    deps: DepsMut,
-    minter_addr: Addr,
-    new_current_token_supply: u32,
-    collection_id: u64,
-    mut token_id: Option<u32>,
-    token_index: Option<u32>,
-) -> Result<CosmosMsg, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
-
-    let mut collection_token_ids: Vec<u32> =
-        CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection_id)?;
-
-    match token_id {
-        Some(_) => {}
-        None => {
-            token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
-        }
-    }
-
-    // Create mint msgs
-    let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, collection_id)?;
-
-    let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
-        Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
-            token_id: token_id.unwrap().to_string(),
-            owner: minter_addr.into_string(),
-            token_uri: Some(format!(
-                "{}/{}",
-                coll_info.base_token_uri,
-                token_id.unwrap()
-            )),
-            extension: config.extension.clone(),
-        });
-
-    let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
-
-    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: token_address.into_string(),
-        msg: to_binary(&mint_msg)?,
-        funds: vec![],
-    });
-
-    // if maintainer already cleared out the queue, then this wont be necessary
-    if collection_token_ids.contains(&token_id.unwrap()) {
-        collection_token_ids.retain(|&x| x != token_id.unwrap());
-        CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
-    }
-
-    CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
-
-    let collection_current_token_supply =
-        COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection_id)?;
-    let new_collection_current_token_supply = collection_current_token_supply - 1;
-    COLLECTION_CURRENT_TOKEN_SUPPLY.save(
-        deps.storage,
-        collection_id,
-        &new_collection_current_token_supply,
-    )?;
-
-    if new_collection_current_token_supply == 0 {
-        config.bundle_completed = true;
-        CONFIG.save(deps.storage, &config)?;
-    }
-
-    CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
-
-    Ok(msg)
-}
-
 fn execute_mint_bundle(
     deps: DepsMut,
     env: Env,
@@ -1221,6 +1151,77 @@ struct ValidateCollectionInfoResponse {
     pub collection_infos: Vec<CollectionInfo>,
     pub total_token_supply: u32,
 }
+
+fn process_and_get_mint_msg(
+    deps: DepsMut,
+    minter_addr: Addr,
+    new_current_token_supply: u32,
+    collection_id: u64,
+    mut token_id: Option<u32>,
+    token_index: Option<u32>,
+) -> Result<CosmosMsg, ContractError> {
+    let mut config = CONFIG.load(deps.storage)?;
+
+    let mut collection_token_ids: Vec<u32> =
+        CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection_id)?;
+
+    match token_id {
+        Some(_) => {}
+        None => {
+            token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
+        }
+    }
+
+    // Create mint msgs
+    let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, collection_id)?;
+
+    let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
+        Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+            token_id: token_id.unwrap().to_string(),
+            owner: minter_addr.into_string(),
+            token_uri: Some(format!(
+                "{}/{}",
+                coll_info.base_token_uri,
+                token_id.unwrap()
+            )),
+            extension: config.extension.clone(),
+        });
+
+    let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
+
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: token_address.into_string(),
+        msg: to_binary(&mint_msg)?,
+        funds: vec![],
+    });
+
+    // if maintainer already cleared out the queue, then this wont be necessary
+    if collection_token_ids.contains(&token_id.unwrap()) {
+        collection_token_ids.retain(|&x| x != token_id.unwrap());
+        CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
+    }
+
+    CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
+
+    let collection_current_token_supply =
+        COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection_id)?;
+    let new_collection_current_token_supply = collection_current_token_supply - 1;
+    COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+        deps.storage,
+        collection_id,
+        &new_collection_current_token_supply,
+    )?;
+
+    if new_collection_current_token_supply == 0 {
+        config.bundle_completed = true;
+        CONFIG.save(deps.storage, &config)?;
+    }
+
+    CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
+
+    Ok(msg)
+}
+
 
 fn validate_collection_info(
     _deps: Deps,
