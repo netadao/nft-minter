@@ -4413,6 +4413,8 @@ mod tests {
     }
 
     mod mint_bundle {
+        use crate::msg::TokenMsg;
+
         use super::*;
 
         #[test]
@@ -4590,6 +4592,236 @@ mod tests {
             println!("###config {:?}", config);
 
             //assert_eq!(5, 7);
+        }
+
+        #[test]
+        fn execute_custom_mint_bundle_init() {
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, true, true, Some(3), Some(3000));
+
+            let msg = ExecuteMsg::ProcessCustomBundle {
+                content_count: 10u32,
+                mint_price: Uint128::from(2_000_000u128),
+                tokens: Some(vec![
+                    TokenMsg {
+                        collection_id: 101,
+                        token_id: 1,
+                    },
+                    TokenMsg {
+                        collection_id: 101,
+                        token_id: 6,
+                    },
+                    TokenMsg {
+                        collection_id: 102,
+                        token_id: 1000,
+                    },
+                    TokenMsg {
+                        collection_id: 103,
+                        token_id: 5,
+                    },
+                    TokenMsg {
+                        collection_id: 103,
+                        token_id: 6,
+                    },
+                    TokenMsg {
+                        collection_id: 102,
+                        token_id: 420,
+                    },
+                    TokenMsg {
+                        collection_id: 101,
+                        token_id: 3000,
+                    },
+                    TokenMsg {
+                        collection_id: 103,
+                        token_id: 3,
+                    },
+                ]),
+                purge: false,
+            };
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
+                .unwrap_err();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
+                .unwrap();
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            println!("config {:?}", config);
+
+            let custom_bundle_tokens: Vec<(u64, u32)> = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCustomBundle {})
+                .unwrap();
+
+            println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
+
+            // testing purge
+            let msg = ExecuteMsg::ProcessCustomBundle {
+                content_count: 111110u32,
+                mint_price: Uint128::from(200_000_000u128),
+                tokens: None,
+                purge: true,
+            };
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
+                .unwrap();
+
+            let custom_bundle_tokens: Vec<(u64, u32)> = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCustomBundle {})
+                .unwrap();
+
+            println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            println!("config {:?}", config);
+
+            assert_ne!(1, 1);
+        }
+
+        #[test]
+        fn execute_custom_mint_bundle_mint() {
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, true, true, Some(3), Some(3000));
+
+                app.update_block(|mut block| block.height += 1);
+
+            let msg = ExecuteMsg::ProcessCustomBundle {
+                content_count: 5u32,
+                mint_price: Uint128::from(2_000_000u128),
+                tokens: Some(vec![
+                    TokenMsg {
+                        collection_id: 101,
+                        token_id: 1,
+                    },
+                    TokenMsg {
+                        collection_id: 101,
+                        token_id: 6,
+                    },
+                    TokenMsg {
+                        collection_id: 102,
+                        token_id: 1000,
+                    },
+                    TokenMsg {
+                        collection_id: 103,
+                        token_id: 5,
+                    },
+                    TokenMsg {
+                        collection_id: 103,
+                        token_id: 6,
+                    },
+                    TokenMsg {
+                        collection_id: 102,
+                        token_id: 420,
+                    },
+                    TokenMsg {
+                        collection_id: 101,
+                        token_id: 3000,
+                    },
+                    TokenMsg {
+                        collection_id: 103,
+                        token_id: 3,
+                    },
+                ]),
+                purge: false,
+            };
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
+                .unwrap_err();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
+                .unwrap();
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            println!("config {:?}", config);
+
+            let custom_bundle_tokens: Vec<(u64, u32)> = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCustomBundle {})
+                .unwrap();
+
+            println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
+
+            let msg = ExecuteMsg::MintCustomBundle {};
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME + 1));
+            app.update_block(|mut block| block.height += 1);
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            println!("config {:?}", config);
+
+            let custom_bundle_tokens: Vec<(u64, u32)> = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCustomBundle {})
+                .unwrap();
+
+            println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
+
+            assert_ne!(1, 1);
         }
     }
 

@@ -197,7 +197,9 @@ pub enum QueryMsg {
     /// Gets Config + some other fields and returns `ConfigResponse`
     GetConfig {},
     /// Checks an address' mint count and returns `AddressValMsg`
-    CheckAddressMints { minter_address: String },
+    CheckAddressMints {
+        minter_address: String,
+    },
     /// Gets a list of all the addresses who have had a public mint
     /// in `ADDRESS_MINT_TRACKER`. Default sort is in ASCENDING based on
     /// addressreturns Vec<AddressValMsg>
@@ -232,6 +234,7 @@ pub enum QueryMsg {
     GetRemainingTokens {},
     /// Gets all the cw721 addresses attached to this contract
     GetCW721Addrs {},
+    GetCustomBundle {},
 }
 
 #[cw_serde]
@@ -267,6 +270,10 @@ pub struct ConfigResponse {
     pub extension: SharedCollectionInfo,
     pub bundle_enabled: bool,
     pub bundle_completed: bool,
+    pub custom_bundle_enabled: bool,
+    pub custom_bundle_completed: bool,
+    pub custom_bundle_mint_price: Uint128,
+    pub custom_bundle_content_count: u32,
 }
 
 #[cw_serde]
