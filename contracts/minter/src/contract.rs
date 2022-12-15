@@ -1158,7 +1158,7 @@ fn process_and_get_mint_msg(
     new_current_token_supply: u32,
     collection_id: u64,
     mut token_id: Option<u32>,
-    token_index: Option<u32>,
+    mut token_index: Option<u32>,
 ) -> Result<CosmosMsg, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
 
@@ -1196,8 +1196,19 @@ fn process_and_get_mint_msg(
     });
 
     // if maintainer already cleared out the queue, then this wont be necessary
-    if collection_token_ids.contains(&token_id.unwrap()) {
-        collection_token_ids.retain(|&x| x != token_id.unwrap());
+    if token_index.is_none() {
+        token_index = collection_token_ids
+            .iter()
+            .position(|&i| i == token_id.unwrap())
+            .map(|idx| idx as u32);
+    };
+
+    // remove token from vec
+    if let Some(idx) = token_index {
+        let len = collection_token_ids.len() - 1;
+        collection_token_ids.swap(idx as usize, len);
+
+        collection_token_ids.resize(len, 0);
         CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
     }
 
@@ -1221,7 +1232,6 @@ fn process_and_get_mint_msg(
 
     Ok(msg)
 }
-
 
 fn validate_collection_info(
     _deps: Deps,
