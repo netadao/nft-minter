@@ -1311,7 +1311,6 @@ fn execute_mint_custom_bundle(
     }
 
     let mut custom_bundle_tokens: Vec<(u64, u32)> = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
-    let mut tokens_to_be_minted: Vec<(u64, u32)> = vec![];
     let mut msgs: Vec<CosmosMsg> = vec![];
 
     // no tokens left so we exit
@@ -1336,13 +1335,16 @@ fn execute_mint_custom_bundle(
         .into_bytes(),
     );
 
+    let mut map: BTreeMap<u64, Vec<u32>> = BTreeMap::new();
+
     // Cut first 16 bytes from 32 byte value
     let randomness: [u8; 16] = sha256.to_vec()[0..16].try_into().unwrap();
     let mut rng = Xoshiro128PlusPlus::from_seed(randomness);
 
+    let mut custom_bundle_tokens_length = custom_bundle_tokens.len();
+
     for _ in 1..=config.custom_bundle_content_count as u64 {
         let r = rng.next_u32();
-        let mut custom_bundle_tokens_length = custom_bundle_tokens.len();
 
         let mut rem = 50;
         if rem > custom_bundle_tokens_length as u32 {
@@ -1365,27 +1367,48 @@ fn execute_mint_custom_bundle(
         }
 
         let token = custom_bundle_tokens[index as usize];
-        tokens_to_be_minted.push(token);
+
+        if let std::collections::btree_map::Entry::Vacant(_e) = map.entry(token.0) {
+            map.insert(
+                token.0,
+                CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, token.0)?,
+            );
+        }
+
+        let collection_token_ids = map.get(&token.0).unwrap().clone();
 
         // resize length for last element in array
         custom_bundle_tokens_length -= 1;
 
         // removes token from custom bundle list and saved at the end
         custom_bundle_tokens.swap(index as usize, custom_bundle_tokens_length);
-        custom_bundle_tokens.resize(custom_bundle_tokens_length, (0, 0));
 
         current_token_supply -= 1;
 
         // this will remove these tokens from the main lists
-        msgs.push(process_and_get_mint_msg(
+        let res = process_and_get_mint_msg_2(
             deps.branch(),
             info.sender.clone(),
             current_token_supply,
             token.0,
             Some(token.1),
             None,
-        )?);
+            collection_token_ids,
+        )?;
+
+        msgs.push(res.0);
+
+        if let Some(x) = map.get_mut(&token.0) {
+            *x = res.1;
+        }
     }
+
+    for id in map.keys() {
+        let new_shuffled_ids = map.get(id).unwrap().clone();
+
+        CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, *id, &new_shuffled_ids)?;
+    }
+    custom_bundle_tokens.resize(custom_bundle_tokens_length, (0, 0));
 
     CUSTOM_BUNDLE_TOKENS.save(deps.storage, &custom_bundle_tokens)?;
 
@@ -1506,6 +1529,84 @@ fn process_and_get_mint_msg(
     }
 
     Ok(msg)
+}
+
+/// also stores
+fn process_and_get_mint_msg_2(
+    deps: DepsMut,
+    minter_addr: Addr,
+    new_current_token_supply: u32,
+    collection_id: u64,
+    mut token_id: Option<u32>,
+    mut token_index: Option<u32>,
+    mut collection_token_ids: Vec<u32>,
+) -> Result<(CosmosMsg, Vec<u32>), ContractError> {
+    if token_id.is_none() && token_index.is_none() {
+        return Err(ContractError::UnableToMint {});
+    }
+
+    let mut config = CONFIG.load(deps.storage)?;
+
+    let collection_length = collection_token_ids.len() - 1;
+
+    if token_id.is_none() || token_index.unwrap_or(0) > (collection_length as u32) {
+        token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
+    }
+
+    // Create mint msgs
+    let coll_info: CollectionInfo = CW721_COLLECTION_INFO.load(deps.storage, collection_id)?;
+
+    let mint_msg: Cw721ExecuteMsg<SharedCollectionInfo, Empty> =
+        Cw721ExecuteMsg::Mint(MintMsg::<SharedCollectionInfo> {
+            token_id: token_id.unwrap().to_string(),
+            owner: minter_addr.into_string(),
+            token_uri: Some(format!(
+                "{}/{}",
+                coll_info.base_token_uri,
+                token_id.unwrap()
+            )),
+            extension: config.extension.clone(),
+        });
+
+    let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
+
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: token_address.into_string(),
+        msg: to_binary(&mint_msg)?,
+        funds: vec![],
+    });
+
+    // if we were not provided a token index, then go grab the token index based on token_id
+    if token_index.is_none() {
+        token_index = collection_token_ids
+            .iter()
+            .position(|&i| i == token_id.unwrap())
+            .map(|idx| idx as u32);
+    };
+
+    // remove token from vec by swapping the item at token index to the end of the vec
+    // then resize the vec to the new length and save
+    if let Some(idx) = token_index {
+        collection_token_ids.swap(idx as usize, collection_length);
+        collection_token_ids.resize(collection_length, 0);
+
+        COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+            deps.storage,
+            collection_id,
+            &(collection_length as u32),
+        )?;
+
+        if collection_length == 0 {
+            config.bundle_completed = true;
+            CONFIG.save(deps.storage, &config)?;
+        }
+
+        CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
+    } else {
+        return Err(ContractError::UnableToMint {});
+    }
+
+    Ok((msg, collection_token_ids))
 }
 
 fn validate_collection_info(
