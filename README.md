@@ -20,6 +20,8 @@ cargo test
 ```
 
 ```
+sh ./scripts/schema.sh
+
 cosmwasm-ts-codegen generate \
     --plugin client \
     --schema ./contracts/airdropper/schema \
