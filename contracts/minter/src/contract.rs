@@ -950,6 +950,9 @@ fn execute_clean_claimed_tokens_from_shuffle(
     check_can_update(deps.as_ref(), &env, &info)?;
 
     if let Some(addr) = AIRDROPPER_ADDR.may_load(deps.storage)? {
+        let mut config = CONFIG.load(deps.storage)?;
+        let mut new_current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+
         let assigned_token_ids: Vec<AD_TokenMsg> = deps.querier.query_wasm_smart(
             addr,
             &AirdropperQueryMsg::GetAssignedTokenIDs {
@@ -959,20 +962,45 @@ fn execute_clean_claimed_tokens_from_shuffle(
         )?;
 
         for msg in assigned_token_ids {
-            let mut ids: Vec<u32> =
+            new_current_token_supply -= 1;
+
+            let mut collection_token_ids: Vec<u32> =
                 CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, msg.collection_id)?;
 
-            ids.retain(|&x| x != msg.token_id);
-            CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, msg.collection_id, &ids)?;
+            // retrieve index of token id
+            let token_index = collection_token_ids
+                .iter()
+                .position(|&i| i == msg.token_id)
+                .map(|idx| idx as u32);
 
-            let collection_current_token_supply =
-                COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, msg.collection_id)?;
-            COLLECTION_CURRENT_TOKEN_SUPPLY.save(
-                deps.storage,
-                msg.collection_id,
-                &(collection_current_token_supply - 1),
-            )?;
+            // if it exists remove token from vec
+            if let Some(idx) = token_index {
+                let collection_length = collection_token_ids.len() - 1;
+
+                collection_token_ids.swap(idx as usize, collection_length);
+                collection_token_ids.resize(collection_length, 0);
+
+                CW721_SHUFFLED_TOKEN_IDS.save(
+                    deps.storage,
+                    msg.collection_id,
+                    &collection_token_ids,
+                )?;
+
+                // collection_length should be the new collection current token supply
+                COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+                    deps.storage,
+                    msg.collection_id,
+                    &(collection_length as u32),
+                )?;
+
+                if collection_length == 0 {
+                    config.bundle_completed = true;
+                    CONFIG.save(deps.storage, &config)?;
+                }
+            }
         }
+
+        CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
 
         Ok(Response::new()
             .add_attribute("method", "clean_claimed_tokens_with_shuffle")
@@ -1152,6 +1180,7 @@ struct ValidateCollectionInfoResponse {
     pub total_token_supply: u32,
 }
 
+/// also stores
 fn process_and_get_mint_msg(
     deps: DepsMut,
     minter_addr: Addr,
@@ -1160,16 +1189,19 @@ fn process_and_get_mint_msg(
     mut token_id: Option<u32>,
     mut token_index: Option<u32>,
 ) -> Result<CosmosMsg, ContractError> {
+    if token_id.is_none() && token_index.is_none() {
+        return Err(ContractError::UnableToMint {});
+    }
+
     let mut config = CONFIG.load(deps.storage)?;
 
     let mut collection_token_ids: Vec<u32> =
         CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection_id)?;
 
-    match token_id {
-        Some(_) => {}
-        None => {
-            token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
-        }
+    let collection_length = collection_token_ids.len() - 1;
+
+    if token_id.is_none() || token_index.unwrap() > (collection_length as u32) {
+        token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
     }
 
     // Create mint msgs
@@ -1195,7 +1227,7 @@ fn process_and_get_mint_msg(
         funds: vec![],
     });
 
-    // if maintainer already cleared out the queue, then this wont be necessary
+    // if we were not provided a token index, then go grab the token index based on token_id
     if token_index.is_none() {
         token_index = collection_token_ids
             .iter()
@@ -1203,32 +1235,29 @@ fn process_and_get_mint_msg(
             .map(|idx| idx as u32);
     };
 
-    // remove token from vec
+    // remove token from vec by swapping the item at token index to the end of the vec
+    // then resize the vec to the new length and save
     if let Some(idx) = token_index {
-        let len = collection_token_ids.len() - 1;
-        collection_token_ids.swap(idx as usize, len);
+        collection_token_ids.swap(idx as usize, collection_length);
+        collection_token_ids.resize(collection_length, 0);
 
-        collection_token_ids.resize(len, 0);
         CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
+
+        COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+            deps.storage,
+            collection_id,
+            &(collection_length as u32),
+        )?;
+
+        if collection_length == 0 {
+            config.bundle_completed = true;
+            CONFIG.save(deps.storage, &config)?;
+        }
+
+        CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
+    } else {
+        return Err(ContractError::UnableToMint {});
     }
-
-    CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, collection_id, &collection_token_ids)?;
-
-    let collection_current_token_supply =
-        COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection_id)?;
-    let new_collection_current_token_supply = collection_current_token_supply - 1;
-    COLLECTION_CURRENT_TOKEN_SUPPLY.save(
-        deps.storage,
-        collection_id,
-        &new_collection_current_token_supply,
-    )?;
-
-    if new_collection_current_token_supply == 0 {
-        config.bundle_completed = true;
-        CONFIG.save(deps.storage, &config)?;
-    }
-
-    CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
 
     Ok(msg)
 }
