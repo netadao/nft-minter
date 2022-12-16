@@ -10,13 +10,6 @@
     "token_code_id"
   ],
   "properties": {
-    "airdrop_address": {
-      "description": "airdropper address if it was manaully instantiated elsewhere",
-      "type": [
-        "string",
-        "null"
-      ]
-    },
     "airdropper_instantiate_info": {
       "description": "airdropper instantiation info must have either or none against `airdrop_address`",
       "anyOf": [
@@ -55,13 +48,6 @@
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
-    },
-    "whitelist_address": {
-      "description": "whitelist address if it was manaully instantiated elsewhere",
-      "type": [
-        "string",
-        "null"
-      ]
     },
     "whitelist_instantiate_info": {
       "description": "whitelist contract instantiation info. must have either or none against `whitelist_address`",
@@ -146,6 +132,12 @@
         "start_time"
       ],
       "properties": {
+        "airdropper_address": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "bundle_enabled": {
           "type": "boolean"
         },
@@ -188,11 +180,7 @@
         },
         "mint_denom": {
           "description": "only native and ibc/ denoms are allowed. onus is on user to verify if they manually instantiate this contract. otherwise, controlled via frontend",
-          "allOf": [
-            {
-              "$ref": "#/definitions/UncheckedDenom"
-            }
-          ]
+          "type": "string"
         },
         "mint_price": {
           "description": "mint price fee for PUBLIC mint. This can be overridden by WL mint_price",
@@ -208,6 +196,12 @@
             {
               "$ref": "#/definitions/Timestamp"
             }
+          ]
+        },
+        "whitelist_address": {
+          "type": [
+            "string",
+            "null"
           ]
         }
       },
@@ -358,37 +352,6 @@
     "Uint64": {
       "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
       "type": "string"
-    },
-    "UncheckedDenom": {
-      "description": "A denom that has not been checked to confirm it points to a valid asset.",
-      "oneOf": [
-        {
-          "description": "A native (bank module) asset.",
-          "type": "object",
-          "required": [
-            "native"
-          ],
-          "properties": {
-            "native": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "description": "A cw20 asset.",
-          "type": "object",
-          "required": [
-            "cw20"
-          ],
-          "properties": {
-            "cw20": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      ]
     }
   }
 }

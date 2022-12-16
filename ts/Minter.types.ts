@@ -12,24 +12,23 @@ export type Addr = string;
 export type Uint128 = string;
 export type Timestamp = Uint64;
 export type Uint64 = string;
-export type CheckedDenom = {
-  native: string;
-} | {
-  cw20: Addr;
-};
 export interface Config {
   admin: Addr;
   bonded_denom: string;
   bundle_completed: boolean;
   bundle_enabled: boolean;
   bundle_mint_price: Uint128;
+  custom_bundle_completed: boolean;
+  custom_bundle_content_count: number;
+  custom_bundle_enabled: boolean;
+  custom_bundle_mint_price: Uint128;
   end_time?: Timestamp | null;
   escrow_funds: boolean;
   extension: SharedCollectionInfo;
   maintainer_addr?: Addr | null;
   max_per_address_bundle_mint: number;
   max_per_address_mint: number;
-  mint_denom: CheckedDenom;
+  mint_denom: string;
   mint_price: Uint128;
   start_time: Timestamp;
   token_code_id: number;
@@ -49,17 +48,12 @@ export type ExecuteMsg = {
 } | {
   init_submodule: [number, ModuleInstantiateInfo];
 } | {
-  update_whitelist_address: string | null;
-} | {
-  update_airdrop_address: string | null;
-} | {
-  mint: {};
-} | {
-  mint_bundle: {};
-} | {
-  airdrop_mint: {
+  mint: {
+    is_promised_mint: boolean;
     minter_address?: string | null;
   };
+} | {
+  mint_bundle: {};
 } | {
   airdrop_claim: {
     minter_address?: string | null;
@@ -72,11 +66,15 @@ export type ExecuteMsg = {
   submodule_hook: [ExecutionTarget, CosmosMsgForEmpty];
 } | {
   disburse_funds: {};
-};
-export type UncheckedDenom = {
-  native: string;
 } | {
-  cw20: string;
+  process_custom_bundle: {
+    content_count: number;
+    mint_price: Uint128;
+    purge: boolean;
+    tokens?: TokenMsg[] | null;
+  };
+} | {
+  mint_custom_bundle: {};
 };
 export type Admin = {
   address: {
@@ -218,6 +216,7 @@ export type GovMsg = {
 };
 export type VoteOption = "yes" | "no" | "abstain" | "no_with_veto";
 export interface BaseInitMsg {
+  airdropper_address?: string | null;
   bundle_enabled: boolean;
   bundle_mint_price: Uint128;
   end_time?: Timestamp | null;
@@ -225,9 +224,10 @@ export interface BaseInitMsg {
   maintainer_address?: string | null;
   max_per_address_bundle_mint: number;
   max_per_address_mint: number;
-  mint_denom: UncheckedDenom;
+  mint_denom: string;
   mint_price: Uint128;
   start_time: Timestamp;
+  whitelist_address?: string | null;
 }
 export interface ModuleInstantiateInfo {
   admin: Admin;
@@ -253,6 +253,10 @@ export interface IbcTimeoutBlock {
   revision: number;
   [k: string]: unknown;
 }
+export interface TokenMsg {
+  collection_id: number;
+  token_id: number;
+}
 export type GetAddressMintsResponse = AddressValMsg[];
 export interface AddressValMsg {
   address: string;
@@ -267,12 +271,16 @@ export interface GetConfigResponse {
   bundle_completed: boolean;
   bundle_enabled: boolean;
   bundle_mint_price: Uint128;
+  custom_bundle_completed: boolean;
+  custom_bundle_content_count: number;
+  custom_bundle_enabled: boolean;
+  custom_bundle_mint_price: Uint128;
   end_time?: Timestamp | null;
   extension: SharedCollectionInfo;
   maintainer_addr?: Addr | null;
   max_per_address_bundle_mint: number;
   max_per_address_mint: number;
-  mint_denom: CheckedDenom;
+  mint_denom: string;
   mint_price: Uint128;
   start_time: Timestamp;
   token_code_id: number;
@@ -298,14 +306,12 @@ export interface GetRemainingTokensResponse {
   total_token_supply: number;
 }
 export interface InstantiateMsg {
-  airdrop_address?: string | null;
   airdropper_instantiate_info?: ModuleInstantiateInfo | null;
   base_fields: BaseInitMsg;
   collection_infos: CollectionInfoMsg[];
   extension: SharedCollectionInfoMsg;
   name: string;
   token_code_id: number;
-  whitelist_address?: string | null;
   whitelist_instantiate_info?: ModuleInstantiateInfo | null;
 }
 export interface CollectionInfoMsg {
@@ -359,4 +365,6 @@ export type QueryMsg = {
   get_remaining_tokens: {};
 } | {
   get_c_w721_addrs: {};
+} | {
+  get_custom_bundle: {};
 };
