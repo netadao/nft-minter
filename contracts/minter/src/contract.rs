@@ -1342,23 +1342,24 @@ fn execute_mint_custom_bundle(
 
     for _ in 1..=config.custom_bundle_content_count as u64 {
         let r = rng.next_u32();
+        let mut custom_bundle_tokens_length = custom_bundle_tokens.len();
 
         let mut rem = 50;
-        if rem > custom_bundle_tokens.len() as u32 {
-            rem = custom_bundle_tokens.len() as u32;
+        if rem > custom_bundle_tokens_length as u32 {
+            rem = custom_bundle_tokens_length as u32;
         }
         let n = r % rem;
 
         // pull either front or go near back of vec
         let mut index: u32 = match r % 2 {
             1 => n,
-            _ => (custom_bundle_tokens.len() as u32) - n,
+            _ => (custom_bundle_tokens_length as u32) - n,
         };
 
         // push index_id down to a 0 based index for the array
         // bound should be 0..(vec_length - 1)
-        if index >= custom_bundle_tokens.len() as u32 {
-            index = (custom_bundle_tokens.len() as u32) - 1;
+        if index >= custom_bundle_tokens_length as u32 {
+            index = (custom_bundle_tokens_length as u32) - 1;
         } else if index > 0 {
             index -= 1;
         }
@@ -1366,8 +1367,12 @@ fn execute_mint_custom_bundle(
         let token = custom_bundle_tokens[index as usize];
         tokens_to_be_minted.push(token);
 
+        // resize length for last element in array
+        custom_bundle_tokens_length -= 1;
+
         // removes token from custom bundle list and saved at the end
-        custom_bundle_tokens.retain(|&x| x != token);
+        custom_bundle_tokens.swap(index as usize, custom_bundle_tokens_length);
+        custom_bundle_tokens.resize(custom_bundle_tokens_length, (0, 0));
 
         current_token_supply -= 1;
 
