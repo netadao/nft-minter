@@ -30,6 +30,9 @@ pub enum ContractError {
     #[error("Invalid code_id for submodule")]
     InvalidSubmoduleCodeId {},
 
+    #[error("Invalid collection_id")]
+    InvalidCollection {},
+
     #[error("Invalid collection_id-token_id")]
     InvalidCollectionToken {},
 

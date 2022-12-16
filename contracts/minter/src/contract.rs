@@ -1402,7 +1402,7 @@ fn validate_tokens(deps: Deps, tokens: Vec<TokenMsg>) -> Result<bool, ContractEr
                 Some(info) => {
                     map.insert(token.collection_id, info);
                 }
-                None => return Err(ContractError::InvalidCollectionToken {}),
+                None => return Err(ContractError::InvalidCollection {}),
             }
         }
 
@@ -1441,7 +1441,7 @@ fn process_and_get_mint_msg(
 
     let collection_length = collection_token_ids.len() - 1;
 
-    if token_id.is_none() || token_index.unwrap() > (collection_length as u32) {
+    if token_id.is_none() || token_index.unwrap_or(0) > (collection_length as u32) {
         token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
     }
 
