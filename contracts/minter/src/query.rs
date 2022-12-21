@@ -32,9 +32,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetCollectionCurrentTokenSupply { start_after, limit } => to_binary(
             &query_get_collection_current_supply(deps, env, start_after, limit)?,
         ),
-        QueryMsg::GetRemainingTokens {} => query_get_remaining_tokens(deps, env),
+        QueryMsg::GetRemainingTokens { address } => query_get_remaining_tokens(deps, env, address),
         QueryMsg::GetCW721Addrs {} => query_get_cw721_addrs(deps, env),
-        QueryMsg::GetCustomBundle {} => query_get_custom_bundle(deps, env),
     }
 }
 
@@ -104,13 +103,77 @@ fn query_get_address_mints(
     to_binary(&address_mints.unwrap())
 }
 
-fn query_get_remaining_tokens(deps: Deps, _env: Env) -> StdResult<Binary> {
+fn query_get_remaining_tokens(deps: Deps, _env: Env, address: Option<String>) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
     let remaining_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+
+    let address_minted: u32 = match address.clone() {
+        Some(minter_address) => {
+            let minter_addr: Addr = deps.api.addr_validate(&minter_address)?;
+
+            (ADDRESS_MINT_TRACKER.may_load(deps.storage, minter_addr)?).unwrap_or(0)
+        }
+        None => 0,
+    };
+
+    let mut address_bundles_minted: u32 = 0;
+
+    let remaining_bundle_mints: u32 = match (config.bundle_enabled, config.bundle_completed) {
+        (true, false) => {
+            let per_collection_supplies = COLLECTION_CURRENT_TOKEN_SUPPLY
+                .range(deps.storage, None, None, Order::Ascending)
+                .map(|item| {
+                    let (token_id, position) = item?;
+                    Ok((token_id, position))
+                })
+                .collect::<StdResult<Vec<_>>>()?;
+
+            let mut _remaining_bundle_mints: u32 = 1000000; // unreasonably high mint number
+
+            for supply in per_collection_supplies {
+                if supply.1 < _remaining_bundle_mints {
+                    _remaining_bundle_mints = supply.1;
+                }
+            }
+
+            address_bundles_minted = match address {
+                Some(minter_address) => {
+                    let minter_addr: Addr = deps.api.addr_validate(&minter_address)?;
+
+                    (BUNDLE_MINT_TRACKER.may_load(deps.storage, minter_addr)?).unwrap_or(0)
+                }
+                None => 0,
+            };
+
+            _remaining_bundle_mints
+        }
+        _ => 0,
+    };
+
+    let remaining_custom_bundle_mints: u32 =
+        match (config.custom_bundle_enabled, config.custom_bundle_completed) {
+            (true, false) => {
+                let custom_bundle_tokens =
+                    (CUSTOM_BUNDLE_TOKENS.may_load(deps.storage)?).unwrap_or_default();
+
+                if config.custom_bundle_content_count > 0 {
+                    (custom_bundle_tokens.len() as u32) / config.custom_bundle_content_count
+                } else {
+                    0
+                }
+            }
+            _ => 0,
+        };
 
     to_binary(&TokenDataResponse {
         total_token_supply: config.total_token_supply,
         remaining_token_supply,
+        address_minted,
+        max_per_address_mint: config.max_per_address_mint,
+        address_bundles_minted,
+        max_per_address_bundle_mint: config.max_per_address_bundle_mint,
+        remaining_bundle_mints,
+        remaining_custom_bundle_mints,
     })
 }
 
@@ -217,10 +280,4 @@ fn query_get_collection_current_supply(
         .collect::<StdResult<Vec<_>>>();
 
     Ok(tokens.unwrap())
-}
-
-fn query_get_custom_bundle(deps: Deps, _env: Env) -> StdResult<Binary> {
-    let tokens = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
-
-    to_binary(&tokens)
 }

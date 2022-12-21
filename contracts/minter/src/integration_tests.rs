@@ -2687,7 +2687,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -2819,7 +2819,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -3024,7 +3024,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -3811,7 +3811,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -3870,7 +3870,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -3896,7 +3896,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -3944,7 +3944,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -3985,7 +3985,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4045,7 +4045,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4072,7 +4072,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4123,7 +4123,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4178,7 +4178,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4228,7 +4228,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4324,7 +4324,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4403,7 +4403,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4438,7 +4438,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4474,7 +4474,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4504,7 +4504,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4561,7 +4561,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetRemainingTokens {},
+                    &QueryMsg::GetRemainingTokens { address: None },
                 )
                 .unwrap();
 
@@ -4664,12 +4664,14 @@ mod tests {
 
             println!("config {:?}", config);
 
+            /*
             let custom_bundle_tokens: Vec<(u64, u32)> = app
                 .wrap()
                 .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCustomBundle {})
                 .unwrap();
 
             println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
+            */
 
             // testing purge
             let msg = ExecuteMsg::ProcessCustomBundle {
@@ -4688,12 +4690,14 @@ mod tests {
                 )
                 .unwrap();
 
+            /*
             let custom_bundle_tokens: Vec<(u64, u32)> = app
                 .wrap()
                 .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCustomBundle {})
                 .unwrap();
 
             println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
+            */
 
             let config: ConfigResponse = app
                 .wrap()
@@ -4777,12 +4781,14 @@ mod tests {
 
             println!("config {:?}", config);
 
+            /*
             let custom_bundle_tokens: Vec<(u64, u32)> = app
                 .wrap()
                 .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCustomBundle {})
                 .unwrap();
 
             println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
+            */
 
             let msg = ExecuteMsg::MintCustomBundle {};
 
@@ -4814,12 +4820,14 @@ mod tests {
 
             println!("config {:?}", config);
 
+            /*
             let custom_bundle_tokens: Vec<(u64, u32)> = app
                 .wrap()
                 .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCustomBundle {})
                 .unwrap();
 
             println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
+            */
 
             assert_ne!(1, 1);
         }

@@ -197,9 +197,7 @@ pub enum QueryMsg {
     /// Gets Config + some other fields and returns `ConfigResponse`
     GetConfig {},
     /// Checks an address' mint count and returns `AddressValMsg`
-    CheckAddressMints {
-        minter_address: String,
-    },
+    CheckAddressMints { minter_address: String },
     /// Gets a list of all the addresses who have had a public mint
     /// in `ADDRESS_MINT_TRACKER`. Default sort is in ASCENDING based on
     /// addressreturns Vec<AddressValMsg>
@@ -231,10 +229,9 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
     /// Gets count of remaining tokens available in `CURRENT_TOKEN_SUPPLY`
-    GetRemainingTokens {},
+    GetRemainingTokens { address: Option<String> },
     /// Gets all the cw721 addresses attached to this contract
     GetCW721Addrs {},
-    GetCustomBundle {},
 }
 
 #[cw_serde]
@@ -296,6 +293,12 @@ pub struct CollectionInfoResponse {
 pub struct TokenDataResponse {
     pub total_token_supply: u32,
     pub remaining_token_supply: u32,
+    pub address_minted: u32,
+    pub max_per_address_mint: u32,
+    pub address_bundles_minted: u32,
+    pub max_per_address_bundle_mint: u32,
+    pub remaining_bundle_mints: u32,
+    pub remaining_custom_bundle_mints: u32,
 }
 
 /// Used as execution msg and query response for single Address-Value pairs
