@@ -4,10 +4,46 @@
   "description": "response object that has token supply data was used for testing",
   "type": "object",
   "required": [
+    "address_bundles_minted",
+    "address_minted",
+    "max_per_address_bundle_mint",
+    "max_per_address_mint",
+    "remaining_bundle_mints",
+    "remaining_custom_bundle_mints",
     "remaining_token_supply",
     "total_token_supply"
   ],
   "properties": {
+    "address_bundles_minted": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "address_minted": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "max_per_address_bundle_mint": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "max_per_address_mint": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "remaining_bundle_mints": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "remaining_custom_bundle_mints": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
     "remaining_token_supply": {
       "type": "integer",
       "format": "uint32",

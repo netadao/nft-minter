@@ -50,9 +50,12 @@ export interface MinterReadOnlyInterface {
     limit?: number;
     startAfter?: number;
   }) => Promise<GetCollectionCurrentTokenSupplyResponse>;
-  getRemainingTokens: () => Promise<GetRemainingTokensResponse>;
+  getRemainingTokens: ({
+    address
+  }: {
+    address?: string;
+  }) => Promise<GetRemainingTokensResponse>;
   getCW721Addrs: () => Promise<GetCW721AddrsResponse>;
-  getCustomBundle: () => Promise<GetCustomBundleResponse>;
 }
 export class MinterQueryClient implements MinterReadOnlyInterface {
   client: CosmWasmClient;
@@ -70,7 +73,6 @@ export class MinterQueryClient implements MinterReadOnlyInterface {
     this.getCollectionCurrentTokenSupply = this.getCollectionCurrentTokenSupply.bind(this);
     this.getRemainingTokens = this.getRemainingTokens.bind(this);
     this.getCW721Addrs = this.getCW721Addrs.bind(this);
-    this.getCustomBundle = this.getCustomBundle.bind(this);
   }
 
   getConfig = async (): Promise<GetConfigResponse> => {
@@ -159,19 +161,20 @@ export class MinterQueryClient implements MinterReadOnlyInterface {
       }
     });
   };
-  getRemainingTokens = async (): Promise<GetRemainingTokensResponse> => {
+  getRemainingTokens = async ({
+    address
+  }: {
+    address?: string;
+  }): Promise<GetRemainingTokensResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      get_remaining_tokens: {}
+      get_remaining_tokens: {
+        address
+      }
     });
   };
   getCW721Addrs = async (): Promise<GetCW721AddrsResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
       get_c_w721_addrs: {}
-    });
-  };
-  getCustomBundle = async (): Promise<GetCustomBundleResponse> => {
-    return this.client.queryContractSmart(this.contractAddress, {
-      get_custom_bundle: {}
     });
   };
 }

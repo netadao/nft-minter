@@ -302,6 +302,12 @@ export interface AddrBal {
   balance: Uint128;
 }
 export interface GetRemainingTokensResponse {
+  address_bundles_minted: number;
+  address_minted: number;
+  max_per_address_bundle_mint: number;
+  max_per_address_mint: number;
+  remaining_bundle_mints: number;
+  remaining_custom_bundle_mints: number;
   remaining_token_supply: number;
   total_token_supply: number;
 }
@@ -362,9 +368,9 @@ export type QueryMsg = {
     start_after?: number | null;
   };
 } | {
-  get_remaining_tokens: {};
+  get_remaining_tokens: {
+    address?: string | null;
+  };
 } | {
   get_c_w721_addrs: {};
-} | {
-  get_custom_bundle: {};
 };
