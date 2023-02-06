@@ -56,6 +56,7 @@ fn query_config(deps: Deps, _env: Env) -> StdResult<ConfigResponse> {
         token_code_id: config.token_code_id,
         airdropper_addr,
         whitelist_addr,
+        escrow_funds: config.escrow_funds,
         extension: config.extension,
         bundle_enabled: config.bundle_enabled,
         bundle_completed: config.bundle_completed,

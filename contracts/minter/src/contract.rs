@@ -478,6 +478,8 @@ fn execute_update_config(
         None => WHITELIST_ADDR.remove(deps.storage),
     }
 
+    config.bundle_enabled = msg.bundle_enabled;
+
     CONFIG.save(deps.storage, &config)?;
 
     Ok(res
@@ -1886,7 +1888,12 @@ fn randomize_and_draw_index(
 
 // #region gates
 
-fn check_can_update(deps: Deps, env: &Env, info: &MessageInfo, allow_update_while_in_progress: bool,) -> Result<bool, ContractError> {
+fn check_can_update(
+    deps: Deps,
+    env: &Env,
+    info: &MessageInfo,
+    allow_update_while_in_progress: bool,
+) -> Result<bool, ContractError> {
     let config = CONFIG.load(deps.storage)?;
 
     // EITHER admin (minting contract) or maintainer can update/

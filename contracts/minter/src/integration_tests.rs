@@ -3204,7 +3204,7 @@ mod tests {
             assert_eq!(contract_balance.amount, Uint128::zero());
             println!("contract_balance {:?}", contract_balance);
         }
-    
+
         #[test]
         fn execute_whitelist_mints_success_midflight_mint_price() {
             let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
@@ -3326,7 +3326,7 @@ mod tests {
             wl_msg.mint_price = Uint128::from(500_000u128);
             app.execute_contract(
                 cw_template_contract.addr(),
-                config.whitelist_addr.clone().unwrap(),
+                config.whitelist_addr.unwrap(),
                 &WhitelistExecuteMsg::UpdateConfig(wl_msg),
                 &[],
             )
@@ -3437,7 +3437,7 @@ mod tests {
 
             app.execute_contract(
                 cw_template_contract.addr(),
-                config.whitelist_addr.clone().unwrap(),
+                config.whitelist_addr.unwrap(),
                 &WhitelistExecuteMsg::UpdateConfig(wl_msg),
                 &[],
             )
@@ -3528,16 +3528,16 @@ mod tests {
             for id in 1..=2 {
                 println!("### id {:?}", id);
                 let _res = app
-                .execute_contract(
-                    Addr::unchecked(USER25),
-                    cw_template_contract.addr(),
-                    &ExecuteMsg::Mint {
-                        is_promised_mint: false,
-                        minter_address: None,
-                    },
-                    &[coin(1_000_000u128, NATIVE_DENOM)],
-                )
-                .unwrap();
+                    .execute_contract(
+                        Addr::unchecked(USER25),
+                        cw_template_contract.addr(),
+                        &ExecuteMsg::Mint {
+                            is_promised_mint: false,
+                            minter_address: None,
+                        },
+                        &[coin(1_000_000u128, NATIVE_DENOM)],
+                    )
+                    .unwrap();
             }
 
             let _res = app
@@ -3555,7 +3555,7 @@ mod tests {
             wl_msg.max_per_address_mint = 3;
             app.execute_contract(
                 cw_template_contract.addr(),
-                config.whitelist_addr.clone().unwrap(),
+                config.whitelist_addr.unwrap(),
                 &WhitelistExecuteMsg::UpdateConfig(wl_msg),
                 &[],
             )
@@ -3571,9 +3571,9 @@ mod tests {
                     },
                     &[coin(1_000_000u128, NATIVE_DENOM)],
                 )
-                .unwrap();            
+                .unwrap();
         }
-    
+
         #[test]
         fn execute_whitelist_mints_success_midflight_updates_max_wl_count() {
             let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
@@ -3663,9 +3663,7 @@ mod tests {
             app.execute_contract(
                 cw_template_contract.addr(),
                 config.whitelist_addr.clone().unwrap(),
-                &WhitelistExecuteMsg::AddToWhitelist(vec![
-                    USER3.to_string(),
-                ]),
+                &WhitelistExecuteMsg::AddToWhitelist(vec![USER3.to_string()]),
                 &[],
             )
             .unwrap_err();
@@ -3673,19 +3671,15 @@ mod tests {
             app.execute_contract(
                 cw_template_contract.addr(),
                 config.whitelist_addr.clone().unwrap(),
-                &WhitelistExecuteMsg::RemoveFromWhitelist(vec![
-                    USER.to_string(),
-                ]),
+                &WhitelistExecuteMsg::RemoveFromWhitelist(vec![USER.to_string()]),
                 &[],
             )
             .unwrap();
 
             app.execute_contract(
                 cw_template_contract.addr(),
-                config.whitelist_addr.clone().unwrap(),
-                &WhitelistExecuteMsg::AddToWhitelist(vec![
-                    USER.to_string(),
-                ]),
+                config.whitelist_addr.unwrap(),
+                &WhitelistExecuteMsg::AddToWhitelist(vec![USER.to_string()]),
                 &[],
             )
             .unwrap_err();
@@ -5267,15 +5261,6 @@ mod tests {
 
             println!("config {:?}", config);
 
-            /*
-            let custom_bundle_tokens: Vec<(u64, u32)> = app
-                .wrap()
-                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCustomBundle {})
-                .unwrap();
-
-            println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
-            */
-
             let msg = ExecuteMsg::MintCustomBundle {};
 
             let _res = app
@@ -5316,6 +5301,343 @@ mod tests {
             */
 
             assert_ne!(1, 1);
+        }
+    }
+
+    mod midflight_updates {
+        use super::*;
+        use crate::msg::TokenMsg;
+
+        #[test]
+        fn execute_public_mint_bundle_disable_bundle() {
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, true, true, Some(2), None);
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+            println!("###config {:?}", config);
+
+            let cw721_addrs: Vec<AddressValMsg> = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCW721Addrs {})
+                .unwrap();
+            println!("### cw721_addrs {:?}", cw721_addrs);
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            println!("### token_data {:?}", token_data);
+
+            // not yet block time
+            let msg = ExecuteMsg::MintBundle {};
+
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
+            app.update_block(|mut block| block.height += 1);
+
+            let res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(5_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            let mut update_msg: BaseInitMsg = BaseInitMsg {
+                maintainer_address: config.maintainer_addr.map(|addr| addr.into_string()),
+                start_time: config.start_time,
+                end_time: config.end_time,
+                max_per_address_mint: config.max_per_address_mint,
+                max_per_address_bundle_mint: config.max_per_address_bundle_mint,
+                mint_price: config.mint_price,
+                bundle_mint_price: config.bundle_mint_price,
+                mint_denom: config.mint_denom.to_string(),
+                escrow_funds: config.escrow_funds,
+                bundle_enabled: config.bundle_enabled,
+                airdropper_address: config.airdropper_addr.map(|addr| addr.into_string()),
+                whitelist_address: config.whitelist_addr.map(|addr| addr.into_string()),
+            };
+
+            update_msg.bundle_enabled = false;
+            app.execute_contract(
+                Addr::unchecked(ADMIN),
+                cw_template_contract.addr(),
+                &ExecuteMsg::UpdateConfig(update_msg),
+                &[],
+            )
+            .unwrap();
+
+            println!("current_token_supply {:?}", res);
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(5_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 8);
+
+            println!("### config {:?}", token_data);
+        }
+
+        #[test]
+        fn execute_custom_mint_bundle_mint_disabled() {
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, true, true, Some(3), Some(3000));
+
+            app.update_block(|mut block| block.height += 1);
+
+            let msg = ExecuteMsg::ProcessCustomBundle {
+                content_count: 5u32,
+                mint_price: Uint128::from(2_000_000u128),
+                tokens: Some(vec![
+                    TokenMsg {
+                        collection_id: 101,
+                        token_id: 1,
+                    },
+                    TokenMsg {
+                        collection_id: 101,
+                        token_id: 6,
+                    },
+                    TokenMsg {
+                        collection_id: 102,
+                        token_id: 1000,
+                    },
+                    TokenMsg {
+                        collection_id: 103,
+                        token_id: 5,
+                    },
+                    TokenMsg {
+                        collection_id: 103,
+                        token_id: 6,
+                    },
+                    TokenMsg {
+                        collection_id: 102,
+                        token_id: 420,
+                    },
+                    TokenMsg {
+                        collection_id: 101,
+                        token_id: 3000,
+                    },
+                    TokenMsg {
+                        collection_id: 103,
+                        token_id: 3,
+                    },
+                ]),
+                purge: false,
+            };
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
+                .unwrap_err();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[],
+                )
+                .unwrap();
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            println!("config {:?}", config);
+
+            let msg = ExecuteMsg::MintCustomBundle {};
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME + 1));
+            app.update_block(|mut block| block.height += 1);
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            let disable_custom_bundle_msg = ExecuteMsg::ProcessCustomBundle {
+                content_count: 5u32,
+                mint_price: Uint128::from(2_000_000u128),
+                tokens: None,
+                purge: true,
+            };
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(ADMIN),
+                    cw_template_contract.addr(),
+                    &disable_custom_bundle_msg,
+                    &[],
+                )
+                .unwrap();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+        }
+
+        #[test]
+        fn execute_public_mint_update_mint_price() {
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+            println!("###config {:?}", config);
+
+            let mut update_msg: BaseInitMsg = BaseInitMsg {
+                maintainer_address: config.maintainer_addr.map(|addr| addr.into_string()),
+                start_time: config.start_time,
+                end_time: config.end_time,
+                max_per_address_mint: config.max_per_address_mint,
+                max_per_address_bundle_mint: config.max_per_address_bundle_mint,
+                mint_price: config.mint_price,
+                bundle_mint_price: config.bundle_mint_price,
+                mint_denom: config.mint_denom.to_string(),
+                escrow_funds: config.escrow_funds,
+                bundle_enabled: config.bundle_enabled,
+                airdropper_address: config.airdropper_addr.map(|addr| addr.into_string()),
+                whitelist_address: config.whitelist_addr.map(|addr| addr.into_string()),
+            };
+
+            // removed end time
+            update_msg.end_time = None;
+            app.execute_contract(
+                Addr::unchecked(ADMIN),
+                cw_template_contract.addr(),
+                &ExecuteMsg::UpdateConfig(update_msg.clone()),
+                &[],
+            )
+            .unwrap();
+
+            // not yet block time
+            let msg = ExecuteMsg::Mint {
+                is_promised_mint: false,
+                minter_address: None,
+            };
+
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER3),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            // try to mint after old end time
+            app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_END_TIME));
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            update_msg.mint_price = Uint128::from(3_000_000u128);
+
+            app.execute_contract(
+                Addr::unchecked(ADMIN),
+                cw_template_contract.addr(),
+                &ExecuteMsg::UpdateConfig(update_msg.clone()),
+                &[],
+            )
+            .unwrap();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(2_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(3_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            update_msg.mint_price = Uint128::from(5_000_000u128);
+
+            app.execute_contract(
+                Addr::unchecked(ADMIN),
+                cw_template_contract.addr(),
+                &ExecuteMsg::UpdateConfig(update_msg),
+                &[],
+            )
+            .unwrap();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(3_000_000, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &msg,
+                    &[coin(5_000_000, NATIVE_DENOM)],
+                )
+                .unwrap();
         }
     }
 

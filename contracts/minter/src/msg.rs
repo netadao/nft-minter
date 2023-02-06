@@ -263,6 +263,7 @@ pub struct ConfigResponse {
     pub airdropper_addr: Option<Addr>,
     /// address to contract that we'll read whitelist data from
     pub whitelist_addr: Option<Addr>,
+    pub escrow_funds: bool,
     /// data we'll pass to the cw721 contract when a token is minted
     pub extension: SharedCollectionInfo,
     pub bundle_enabled: bool,
