@@ -4,9 +4,12 @@ use cosmwasm_std::{Addr, Timestamp};
 /// General Instantiation message. also used to pass updates for the config
 #[cw_serde]
 pub struct InstantiateMsg {
-    ///
+    /// alternate address for maintaining/management of this contract
     pub maintainer_address: Option<String>,
+    /// start time for the airdropper portion of the campaign
     pub start_time: Timestamp,
+    /// hard stop for claims
+    /// todo: implement stop. for s1 of project, no end time for claiming
     pub end_time: Option<Timestamp>,
 }
 
@@ -19,7 +22,7 @@ pub enum ExecuteMsg {
     /// This is a separate function so the minter contract can easily pass an update
     /// if the maintainer needs to be updated
     UpdateMaintainerAddress(Option<String>),
-    /// Value used here is a `token_id`. This function will validate the token_id and
+    /// `Value` used here is a `token_id`. This function will validate the token_id and
     /// add it to an address' list of promised `token_id`s
     AddPromisedTokenIDs(Vec<AddressTokenMsg>),
     /// For every `token_id` passed in, grab the address it was promised to, then
@@ -28,6 +31,7 @@ pub enum ExecuteMsg {
     RemovePromisedTokenIDs(Vec<TokenMsg>),
     /// Given an a list of addresses, we'll iterate through and unassign each token_id
     /// from the assigned tokens tracker and then remove the address
+    /// this will remove ALL promised token ids for an address
     RemovePromisedTokensByAddress(Vec<String>),
     /// Value used here is a count/number of promised mints to an address
     /// Also performs updates if the count needs to change
@@ -62,21 +66,21 @@ pub enum QueryMsg {
     /// Lists all assigned token_id-address pairs in `ASSIGNED_TOKEN_IDS`
     /// default sort is ASCENDING by token_id. returns Vec<AddressValMsg>
     GetAssignedTokenIDsWithAddress {
-        /// token_id
+        /// (collection_id, token_id)
         start_after: Option<(u64, u32)>,
         limit: Option<u32>,
     },
     /// Lists all token_ids that are claimed in `CLAIMED_TOKEN_IDS`
     /// default sort is ASCENDING by token_id. returns Vec<u32>
     GetClaimedTokenIDs {
-        /// token_id
+        /// (collection_id, token_id)
         start_after: Option<(u64, u32)>,
         limit: Option<u32>,
     },
     /// Lists all token_ids and which address claimed themin `CLAIMED_TOKEN_IDS`
     /// default sort is ASCENDING by token_id. returns Vec<AddressValMsg>
     GetClaimedTokenIDsWithAddress {
-        /// token_id
+        /// (collection_id, token_id)
         start_after: Option<(u64, u32)>,
         limit: Option<u32>,
     },

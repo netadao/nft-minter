@@ -32,11 +32,6 @@ pub fn instantiate(
         return Err(ContractError::InvalidEndTime {});
     }
 
-    // this should never get hit. the first two will validate before this.
-    if msg.end_time <= env.block.time {
-        return Err(ContractError::InvalidEndTime {});
-    }
-
     // validate against global max
     if msg.max_per_address_mint > MAX_PER_ADDRESS_MINT {
         return Err(ContractError::InvalidMaxPerAddressMint(
@@ -175,7 +170,7 @@ fn execute_update_maintainer_address(
     info: MessageInfo,
     address: Option<String>,
 ) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info, false)?;
+    check_can_update(deps.as_ref(), &env, &info, true)?;
 
     let mut config = CONFIG.load(deps.storage)?;
 
@@ -247,7 +242,7 @@ pub fn execute_remove_from_whitelist(
     info: MessageInfo,
     addresses: Vec<String>,
 ) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info, false)?;
+    check_can_update(deps.as_ref(), &env, &info, true)?;
 
     let mut whitelist_address_count = WHITELIST_ADDRESS_COUNT.load(deps.storage)?;
 

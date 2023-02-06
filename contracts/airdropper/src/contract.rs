@@ -145,7 +145,7 @@ fn execute_update_maintainer_address(
         .add_attribute("sender", info.sender))
 }
 
-/// value used here represents the `token_id`
+/// value in `AddressTokenMsg` used here represents the `token_id`
 fn execute_add_promised_token_ids(
     deps: DepsMut,
     env: Env,
@@ -156,6 +156,9 @@ fn execute_add_promised_token_ids(
 
     // iterate through each { address, value} we have
     // in this case value is the token_id and NOT mint count
+    // airdropper is unaware of valid collection_ids, so FE/claim
+    // contract will fail if an invalid collection_id is called
+    // todo: optimize for large number of records
     for address_token in address_tokens.into_iter() {
         let token: (u64, u32) = (
             address_token.token.clone().collection_id,
@@ -188,7 +191,7 @@ fn execute_add_promised_token_ids(
         .add_attribute("sender", info.sender))
 }
 
-/// value used here represents the `token_id`
+/// value used in `AddressTokenMsg` represents the `token_id`
 fn execute_remove_promised_token_ids(
     deps: DepsMut,
     env: Env,
@@ -206,6 +209,7 @@ fn execute_remove_promised_token_ids(
             let addr: Addr =
                 ASSIGNED_TOKEN_IDS.load(deps.storage, (id.collection_id, id.token_id))?;
 
+            // todo: optimize for large number of records
             let mut address_assigned_token_ids = (ADDRESS_PROMISED_TOKEN_IDS
                 .may_load(deps.storage, addr.clone())?)
             .unwrap_or_default();
@@ -220,7 +224,6 @@ fn execute_remove_promised_token_ids(
             }
             ASSIGNED_TOKEN_IDS.remove(deps.storage, (id.collection_id, id.token_id));
         }
-        // TODO: check error?
     }
 
     Ok(Response::new()
@@ -228,7 +231,6 @@ fn execute_remove_promised_token_ids(
         .add_attribute("sender", info.sender))
 }
 
-/// value used here represents the `token_id`
 fn execute_remove_promised_token_ids_by_address(
     deps: DepsMut,
     env: Env,
@@ -261,7 +263,7 @@ fn execute_remove_promised_token_ids_by_address(
         .add_attribute("sender", info.sender))
 }
 
-/// value used here represents total promised(fee free) mint `count` promised to an address
+/// `AddressValMsg` value used here represents total promised(fee free) mint `count` promised to an address
 fn execute_add_promised_mints(
     deps: DepsMut,
     env: Env,
@@ -298,7 +300,7 @@ fn execute_remove_promised_mints(
         .add_attribute("sender", info.sender))
 }
 
-// value used here represents the `token_id`
+// `AddressTokenMsg` token used here represents the `token_id`
 fn execute_mark_token_id_claimed(
     deps: DepsMut,
     env: Env,
