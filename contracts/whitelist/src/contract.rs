@@ -94,7 +94,7 @@ fn execute_update_config(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info, false)?;
+    check_can_update(deps.as_ref(), &env, &info, true)?;
     let mut config = CONFIG.load(deps.storage)?;
 
     // update maintainer address

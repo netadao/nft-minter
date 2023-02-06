@@ -3204,6 +3204,492 @@ mod tests {
             assert_eq!(contract_balance.amount, Uint128::zero());
             println!("contract_balance {:?}", contract_balance);
         }
+    
+        #[test]
+        fn execute_whitelist_mints_success_midflight_mint_price() {
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            let wl_config: WhitelistConfig = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetConfig {},
+                )
+                .unwrap();
+
+            let maintainer_address: Option<String> =
+                wl_config.maintainer_addr.map(|addr| addr.into_string());
+
+            let mut wl_msg = WLInstantiateMsg {
+                start_time: wl_config.start_time,
+                end_time: wl_config.end_time,
+                maintainer_address,
+                max_whitelist_address_count: wl_config.max_whitelist_address_count,
+                max_per_address_mint: wl_config.max_per_address_mint,
+                mint_price: wl_config.mint_price,
+            };
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::AddToWhitelist(vec![
+                    USER.to_string(),
+                    USER10.to_string(),
+                    USER25.to_string(),
+                ]),
+                &[],
+            )
+            .unwrap();
+
+            let addresses: Vec<String> = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetWhitelistAddresses {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap();
+
+            println!("### GetWhitelistAddresses {:?}", addresses);
+            assert_eq!(
+                addresses,
+                vec![USER.to_string(), USER10.to_string(), USER25.to_string()]
+            );
+
+            wl_msg.mint_price = Uint128::from(1_000_001u128);
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::UpdateConfig(wl_msg.clone()),
+                &[],
+            )
+            .unwrap();
+
+            let wl_config: WhitelistConfig = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetConfig {},
+                )
+                .unwrap();
+
+            assert_eq!(wl_config.mint_price, Uint128::from(1_000_001u128));
+            assert_eq!(wl_config.whitelist_address_count, 3);
+
+            app.update_block(|mut block| {
+                block.time = Timestamp::from_seconds(WHITELIST_START_TIME)
+            });
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
+                    &[coin(1_000_001, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            let address_mint_tracker: Vec<(String, u32)> = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetAddressMints {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap();
+
+            assert_eq!(address_mint_tracker[0].0, USER.to_owned());
+            assert_eq!(address_mint_tracker[0].1, 1);
+
+            let admin_balance = app.wrap().query_all_balances(ADMIN.to_owned()).unwrap();
+            println!("{:?}", admin_balance);
+            assert_eq!(admin_balance[0].amount, Uint128::from(10_700_001u128));
+
+            let maintainer_balance = app
+                .wrap()
+                .query_all_balances(MAINTAINER_ADDR.to_owned())
+                .unwrap();
+            assert_eq!(maintainer_balance[0].amount, Uint128::from(300_000u128));
+
+            wl_msg.mint_price = Uint128::from(500_000u128);
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::UpdateConfig(wl_msg),
+                &[],
+            )
+            .unwrap();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
+                    &[coin(1_000_001u128, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
+                    &[coin(500_000u128, NATIVE_DENOM)],
+                )
+                .unwrap();
+        }
+
+        #[test]
+        fn execute_whitelist_mints_success_midflight_updates_end_early() {
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            let wl_config: WhitelistConfig = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetConfig {},
+                )
+                .unwrap();
+
+            let maintainer_address: Option<String> =
+                wl_config.maintainer_addr.map(|addr| addr.into_string());
+
+            let mut wl_msg = WLInstantiateMsg {
+                start_time: wl_config.start_time,
+                end_time: wl_config.end_time,
+                maintainer_address,
+                max_whitelist_address_count: wl_config.max_whitelist_address_count,
+                max_per_address_mint: wl_config.max_per_address_mint,
+                mint_price: wl_config.mint_price,
+            };
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::AddToWhitelist(vec![
+                    USER.to_string(),
+                    USER10.to_string(),
+                    USER25.to_string(),
+                ]),
+                &[],
+            )
+            .unwrap();
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::UpdateConfig(wl_msg.clone()),
+                &[],
+            )
+            .unwrap();
+
+            let wl_config: WhitelistConfig = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetConfig {},
+                )
+                .unwrap();
+
+            assert_eq!(wl_config.mint_price, Uint128::from(1_000_000u128));
+            assert_eq!(wl_config.whitelist_address_count, 3);
+
+            app.update_block(|mut block| {
+                block.time = Timestamp::from_seconds(WHITELIST_START_TIME)
+            });
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
+                    &[coin(1_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            wl_msg.end_time = Timestamp::from_seconds(WHITELIST_START_TIME + 1);
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::UpdateConfig(wl_msg),
+                &[],
+            )
+            .unwrap();
+
+            app.update_block(|mut block| {
+                block.time = Timestamp::from_seconds(WHITELIST_START_TIME + 1)
+            });
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
+                    &[coin(1_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+        }
+
+        #[test]
+        fn execute_whitelist_mints_success_midflight_updates_max_per_address_mint() {
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            let wl_config: WhitelistConfig = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetConfig {},
+                )
+                .unwrap();
+
+            let maintainer_address: Option<String> =
+                wl_config.maintainer_addr.map(|addr| addr.into_string());
+
+            let mut wl_msg = WLInstantiateMsg {
+                start_time: wl_config.start_time,
+                end_time: wl_config.end_time,
+                maintainer_address,
+                max_whitelist_address_count: wl_config.max_whitelist_address_count,
+                max_per_address_mint: wl_config.max_per_address_mint,
+                mint_price: wl_config.mint_price,
+            };
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::AddToWhitelist(vec![
+                    USER.to_string(),
+                    USER10.to_string(),
+                    USER25.to_string(),
+                ]),
+                &[],
+            )
+            .unwrap();
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::UpdateConfig(wl_msg.clone()),
+                &[],
+            )
+            .unwrap();
+
+            let wl_config: WhitelistConfig = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetConfig {},
+                )
+                .unwrap();
+
+            assert_eq!(wl_config.mint_price, Uint128::from(1_000_000u128));
+            assert_eq!(wl_config.whitelist_address_count, 3);
+            assert_eq!(wl_config.max_per_address_mint, 2);
+
+            app.update_block(|mut block| {
+                block.time = Timestamp::from_seconds(WHITELIST_START_TIME)
+            });
+
+            for id in 1..=2 {
+                println!("### id {:?}", id);
+                let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
+                    &[coin(1_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap();
+            }
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
+                    &[coin(1_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap_err();
+
+            wl_msg.max_per_address_mint = 3;
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::UpdateConfig(wl_msg),
+                &[],
+            )
+            .unwrap();
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
+                    &[coin(1_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap();            
+        }
+    
+        #[test]
+        fn execute_whitelist_mints_success_midflight_updates_max_wl_count() {
+            let (mut app, cw_template_contract) = proper_instantiate(true, true, false, None, None);
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            let wl_config: WhitelistConfig = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetConfig {},
+                )
+                .unwrap();
+
+            let maintainer_address: Option<String> =
+                wl_config.maintainer_addr.map(|addr| addr.into_string());
+
+            let mut wl_msg = WLInstantiateMsg {
+                start_time: wl_config.start_time,
+                end_time: wl_config.end_time,
+                maintainer_address,
+                max_whitelist_address_count: wl_config.max_whitelist_address_count,
+                max_per_address_mint: wl_config.max_per_address_mint,
+                mint_price: wl_config.mint_price,
+            };
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::AddToWhitelist(vec![
+                    USER.to_string(),
+                    USER10.to_string(),
+                    USER25.to_string(),
+                ]),
+                &[],
+            )
+            .unwrap();
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::UpdateConfig(wl_msg.clone()),
+                &[],
+            )
+            .unwrap();
+
+            let wl_config: WhitelistConfig = app
+                .wrap()
+                .query_wasm_smart(
+                    config.whitelist_addr.clone().unwrap(),
+                    &WhitelistQueryMsg::GetConfig {},
+                )
+                .unwrap();
+
+            assert_eq!(wl_config.mint_price, Uint128::from(1_000_000u128));
+            assert_eq!(wl_config.whitelist_address_count, 3);
+
+            app.update_block(|mut block| {
+                block.time = Timestamp::from_seconds(WHITELIST_START_TIME)
+            });
+
+            let _res = app
+                .execute_contract(
+                    Addr::unchecked(USER25),
+                    cw_template_contract.addr(),
+                    &ExecuteMsg::Mint {
+                        is_promised_mint: false,
+                        minter_address: None,
+                    },
+                    &[coin(1_000_000u128, NATIVE_DENOM)],
+                )
+                .unwrap();
+
+            wl_msg.max_whitelist_address_count = 2;
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::UpdateConfig(wl_msg),
+                &[],
+            )
+            .unwrap();
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::AddToWhitelist(vec![
+                    USER3.to_string(),
+                ]),
+                &[],
+            )
+            .unwrap_err();
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::RemoveFromWhitelist(vec![
+                    USER.to_string(),
+                ]),
+                &[],
+            )
+            .unwrap();
+
+            app.execute_contract(
+                cw_template_contract.addr(),
+                config.whitelist_addr.clone().unwrap(),
+                &WhitelistExecuteMsg::AddToWhitelist(vec![
+                    USER.to_string(),
+                ]),
+                &[],
+            )
+            .unwrap_err();
+        }
     }
 
     mod whitelist_hooks {
