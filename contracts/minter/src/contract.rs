@@ -349,7 +349,7 @@ fn execute_update_config(
     info: MessageInfo,
     msg: BaseInitMsg,
 ) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info)?;
+    check_can_update(deps.as_ref(), &env, &info, true)?;
 
     let mut config = CONFIG.load(deps.storage)?;
 
@@ -492,7 +492,7 @@ fn execute_init_submodule(
     reply_id: u64,
     module_info: ModuleInstantiateInfo,
 ) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info)?;
+    check_can_update(deps.as_ref(), &env, &info, false)?;
 
     // needs to be valid reply_id
     if reply_id != INSTANTIATE_AIRDROPPER_REPLY_ID && reply_id != INSTANTIATE_WHITELIST_REPLY_ID {
@@ -963,7 +963,7 @@ fn execute_clean_claimed_tokens_from_shuffle(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info)?;
+    check_can_update(deps.as_ref(), &env, &info, true)?;
 
     if let Some(addr) = AIRDROPPER_ADDR.may_load(deps.storage)? {
         let mut config = CONFIG.load(deps.storage)?;
@@ -1127,7 +1127,7 @@ fn execute_submodule_hook(
     target: ExecutionTarget,
     msg: CosmosMsg<Empty>,
 ) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info)?;
+    check_can_update(deps.as_ref(), &env, &info, false)?;
 
     // extract target contract address from cosmosmsg::wasmmsg
     let target_contract_address: String = match msg.clone() {
@@ -1221,20 +1221,19 @@ fn execute_process_custom_bundle(
     tokens: Option<Vec<TokenMsg>>,
     purge: bool,
 ) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info)?;
-
     let mut config = CONFIG.load(deps.storage)?;
 
     if purge {
         CUSTOM_BUNDLE_TOKENS.remove(deps.storage);
         config.custom_bundle_enabled = false;
     } else {
+        check_can_update(deps.as_ref(), &env, &info, false)?;
         let mut new_custom_bundle_tokens: Vec<(u64, u32)> = vec![];
 
         if let Some(tokes) = tokens {
             let indexes = shuffle_token_ids(
                 &env,
-                info.sender,
+                info.sender.clone(),
                 (0..=((tokes.len() as u32) - 1)).collect::<Vec<u32>>(),
                 69u64,
             )?;
@@ -1254,6 +1253,7 @@ fn execute_process_custom_bundle(
         config.custom_bundle_enabled = true;
     }
 
+    check_can_update(deps.as_ref(), &env, &info, true)?;
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new())
@@ -1886,13 +1886,13 @@ fn randomize_and_draw_index(
 
 // #region gates
 
-fn check_can_update(deps: Deps, env: &Env, info: &MessageInfo) -> Result<bool, ContractError> {
+fn check_can_update(deps: Deps, env: &Env, info: &MessageInfo, allow_update_while_in_progress: bool,) -> Result<bool, ContractError> {
     let config = CONFIG.load(deps.storage)?;
 
     // EITHER admin (minting contract) or maintainer can update/
     if config.admin == info.sender.clone() || config.maintainer_addr == Some(info.sender.clone()) {
         // campaign started
-        if config.start_time <= env.block.time {
+        if !allow_update_while_in_progress && config.start_time <= env.block.time {
             return Err(ContractError::MintIsActive {});
         }
 
