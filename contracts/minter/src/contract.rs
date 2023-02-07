@@ -587,8 +587,6 @@ pub fn execute_mint(
         }
     }
 
-    println!("{:?}", 1);
-
     if _mint_type != MintType::None {
         return _execute_mint(deps, env, info, _mint_type, mint_price, minter_addr);
     }
@@ -778,7 +776,6 @@ fn _execute_mint_bundle(
 
     for collection in collections {
         current_token_supply -= 1;
-        println!("collection.value {:?}", collection.value);
 
         let collection_current_token_supply =
             COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection.value as u64)?;
