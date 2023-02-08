@@ -59,10 +59,10 @@ pub fn execute(
         ExecuteMsg::UpdateMaintainerAddress(address) => {
             execute_update_maintainer_address(deps, env, info, address)
         }
-        ExecuteMsg::AddPromisedTokenIDs(msg) => {
+        ExecuteMsg::AddPromisedTokenIds(msg) => {
             execute_add_promised_token_ids(deps, env, info, msg)
         }
-        ExecuteMsg::RemovePromisedTokenIDs(ids) => {
+        ExecuteMsg::RemovePromisedTokenIds(ids) => {
             execute_remove_promised_token_ids(deps, env, info, ids)
         }
         ExecuteMsg::RemovePromisedTokensByAddress(addresses) => {
@@ -74,7 +74,7 @@ pub fn execute(
         ExecuteMsg::RemovePromisedMints(addresses) => {
             execute_remove_promised_mints(deps, env, info, addresses)
         }
-        ExecuteMsg::MarkTokenIDClaimed(msg) => execute_mark_token_id_claimed(deps, env, info, msg),
+        ExecuteMsg::MarkTokenIdClaimed(msg) => execute_mark_token_id_claimed(deps, env, info, msg),
         ExecuteMsg::IncrementAddressClaimedPromisedMintCount(address) => {
             execute_increment_address_promised_mint_count(deps, env, info, address)
         }

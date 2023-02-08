@@ -900,7 +900,7 @@ mod tests {
             app.execute_contract(
                 cw_template_contract.addr(),
                 config.airdropper_addr.unwrap(),
-                &AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
+                &AirdropperExecuteMsg::AddPromisedTokenIds(vec![
                     AD_AddressTokenMsg {
                         address: USER.to_owned(),
                         token: AD_TokenMsg {
@@ -1469,7 +1469,7 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
+                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIds(vec![
                             AD_AddressTokenMsg {
                                 address: USER.to_owned(),
                                 token: AD_TokenMsg {
@@ -1494,7 +1494,7 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
+                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIds(vec![
                             AD_AddressTokenMsg {
                                 address: USER.to_owned(),
                                 token: AD_TokenMsg {
@@ -1526,7 +1526,7 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
+                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIds(vec![
                             AD_AddressTokenMsg {
                                 address: USER3.to_owned(),
                                 token: AD_TokenMsg {
@@ -1554,7 +1554,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     config.airdropper_addr.clone().unwrap(),
-                    &AirdropperQueryMsg::GetAddressPromisedTokenIDs {
+                    &AirdropperQueryMsg::GetAddressPromisedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -1605,7 +1605,7 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::RemovePromisedTokenIDs(vec![
+                        msg: to_binary(&AirdropperExecuteMsg::RemovePromisedTokenIds(vec![
                             AD_TokenMsg {
                                 collection_id: 101,
                                 token_id: 1,
@@ -1631,7 +1631,7 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::RemovePromisedTokenIDs(vec![
+                        msg: to_binary(&AirdropperExecuteMsg::RemovePromisedTokenIds(vec![
                             AD_TokenMsg {
                                 collection_id: 101,
                                 token_id: 1,
@@ -1653,7 +1653,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     config.airdropper_addr.clone().unwrap(),
-                    &AirdropperQueryMsg::GetAddressPromisedTokenIDs {
+                    &AirdropperQueryMsg::GetAddressPromisedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -1703,7 +1703,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     config.airdropper_addr.unwrap(),
-                    &AirdropperQueryMsg::GetAddressPromisedTokenIDs {
+                    &AirdropperQueryMsg::GetAddressPromisedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -1883,7 +1883,7 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIDs(vec![
+                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIds(vec![
                             AD_AddressTokenMsg {
                                 address: USER.to_owned(),
                                 token: AD_TokenMsg {
@@ -1915,7 +1915,7 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::MarkTokenIDClaimed(
+                        msg: to_binary(&AirdropperExecuteMsg::MarkTokenIdClaimed(
                             AD_AddressTokenMsg {
                                 address: USER.to_owned(),
                                 token: AD_TokenMsg {
@@ -1940,7 +1940,7 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::MarkTokenIDClaimed(
+                        msg: to_binary(&AirdropperExecuteMsg::MarkTokenIdClaimed(
                             AD_AddressTokenMsg {
                                 address: USER.to_owned(),
                                 token: AD_TokenMsg {
@@ -1961,7 +1961,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     config.airdropper_addr.clone().unwrap(),
-                    &AirdropperQueryMsg::GetAssignedTokenIDs {
+                    &AirdropperQueryMsg::GetAssignedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -1989,7 +1989,7 @@ mod tests {
                     ExecutionTarget::Airdropper,
                     CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
-                        msg: to_binary(&AirdropperExecuteMsg::MarkTokenIDClaimed(
+                        msg: to_binary(&AirdropperExecuteMsg::MarkTokenIdClaimed(
                             AD_AddressTokenMsg {
                                 address: USER.to_owned(),
                                 token: AD_TokenMsg {
@@ -2010,7 +2010,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     config.airdropper_addr.unwrap(),
-                    &AirdropperQueryMsg::GetClaimedTokenIDsWithAddress {
+                    &AirdropperQueryMsg::GetClaimedTokenIdsWithAddress {
                         start_after: None,
                         limit: None,
                     },

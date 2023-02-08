@@ -17,19 +17,19 @@ use crate::state::{
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => query_config(deps),
-        QueryMsg::GetAddressPromisedTokenIDs { start_after, limit } => {
+        QueryMsg::GetAddressPromisedTokenIds { start_after, limit } => {
             query_get_address_promised_token_ids(deps, start_after, limit)
         }
-        QueryMsg::GetAssignedTokenIDs { start_after, limit } => {
+        QueryMsg::GetAssignedTokenIds { start_after, limit } => {
             query_get_assigned_token_ids(deps, start_after, limit)
         }
-        QueryMsg::GetAssignedTokenIDsWithAddress { start_after, limit } => {
+        QueryMsg::GetAssignedTokenIdsWithAddress { start_after, limit } => {
             query_get_assigned_token_ids_with_address(deps, start_after, limit)
         }
-        QueryMsg::GetClaimedTokenIDs { start_after, limit } => {
+        QueryMsg::GetClaimedTokenIds { start_after, limit } => {
             query_get_claimed_token_ids(deps, start_after, limit)
         }
-        QueryMsg::GetClaimedTokenIDsWithAddress { start_after, limit } => {
+        QueryMsg::GetClaimedTokenIdsWithAddress { start_after, limit } => {
             query_get_claimed_token_ids_with_address(deps, start_after, limit)
         }
         QueryMsg::GetAddressPromisedMints { start_after, limit } => {

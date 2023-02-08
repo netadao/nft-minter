@@ -329,7 +329,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(USER),
                 cw_template_contract.addr(),
-                &ExecuteMsg::AddPromisedTokenIDs(promised_tokens_arr.clone()),
+                &ExecuteMsg::AddPromisedTokenIds(promised_tokens_arr.clone()),
                 &[],
             )
             .unwrap_err();
@@ -338,7 +338,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::AddPromisedTokenIDs(promised_tokens_arr),
+                &ExecuteMsg::AddPromisedTokenIds(promised_tokens_arr),
                 &[],
             )
             .unwrap();
@@ -347,7 +347,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAddressPromisedTokenIDs {
+                    &QueryMsg::GetAddressPromisedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -360,7 +360,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAssignedTokenIDs {
+                    &QueryMsg::GetAssignedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -409,7 +409,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::AddPromisedTokenIDs(promised_tokens_arr),
+                &ExecuteMsg::AddPromisedTokenIds(promised_tokens_arr),
                 &[],
             )
             .unwrap();
@@ -418,7 +418,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAddressPromisedTokenIDs {
+                    &QueryMsg::GetAddressPromisedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -431,7 +431,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAssignedTokenIDs {
+                    &QueryMsg::GetAssignedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -486,7 +486,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAssignedTokenIDs {
+                    &QueryMsg::GetAssignedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -536,7 +536,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::AddPromisedTokenIDs(promised_tokens_arr),
+                &ExecuteMsg::AddPromisedTokenIds(promised_tokens_arr),
                 &[],
             )
             .unwrap();
@@ -545,7 +545,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAddressPromisedTokenIDs {
+                    &QueryMsg::GetAddressPromisedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -558,7 +558,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAssignedTokenIDs {
+                    &QueryMsg::GetAssignedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -600,7 +600,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(USER),
                 cw_template_contract.addr(),
-                &ExecuteMsg::RemovePromisedTokenIDs(remove_token_ids.clone()),
+                &ExecuteMsg::RemovePromisedTokenIds(remove_token_ids.clone()),
                 &[],
             )
             .unwrap_err();
@@ -609,7 +609,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::RemovePromisedTokenIDs(remove_token_ids),
+                &ExecuteMsg::RemovePromisedTokenIds(remove_token_ids),
                 &[],
             )
             .unwrap();
@@ -618,7 +618,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAssignedTokenIDs {
+                    &QueryMsg::GetAssignedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -668,7 +668,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(USER),
                 cw_template_contract.addr(),
-                &ExecuteMsg::AddPromisedTokenIDs(promised_tokens_arr.clone()),
+                &ExecuteMsg::AddPromisedTokenIds(promised_tokens_arr.clone()),
                 &[],
             )
             .unwrap_err();
@@ -677,7 +677,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::AddPromisedTokenIDs(promised_tokens_arr),
+                &ExecuteMsg::AddPromisedTokenIds(promised_tokens_arr),
                 &[],
             )
             .unwrap();
@@ -686,7 +686,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAddressPromisedTokenIDs {
+                    &QueryMsg::GetAddressPromisedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -699,7 +699,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetAssignedTokenIDs {
+                    &QueryMsg::GetAssignedTokenIds {
                         start_after: None,
                         limit: None,
                     },
@@ -720,7 +720,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(USER),
                 cw_template_contract.addr(),
-                &ExecuteMsg::MarkTokenIDClaimed(claim_msg.clone()),
+                &ExecuteMsg::MarkTokenIdClaimed(claim_msg.clone()),
                 &[],
             )
             .unwrap_err();
@@ -729,7 +729,7 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::MarkTokenIDClaimed(claim_msg),
+                &ExecuteMsg::MarkTokenIdClaimed(claim_msg),
                 &[],
             )
             .unwrap();
@@ -738,7 +738,7 @@ mod tests {
                 .wrap()
                 .query_wasm_smart(
                     &cw_template_contract.addr(),
-                    &QueryMsg::GetClaimedTokenIDsWithAddress {
+                    &QueryMsg::GetClaimedTokenIdsWithAddress {
                         start_after: None,
                         limit: None,
                     },

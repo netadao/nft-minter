@@ -14,7 +14,7 @@ use crate::state::{
 use airdropper::{
     msg::ExecuteMsg::{
         IncrementAddressClaimedPromisedMintCount as AD_IncrementAddressClaimedPromisedMintCount,
-        MarkTokenIDClaimed as AD_MarkTokenIDClaimed,
+        MarkTokenIdClaimed as AD_MarkTokenIdClaimed,
         UpdateMaintainerAddress as AD_UpdateMaintainerAddress,
     },
     msg::QueryMsg as AirdropperQueryMsg,
@@ -936,7 +936,7 @@ fn execute_airdrop_token_distribution(
                 None,
             )?);
 
-            let update_msg = AD_MarkTokenIDClaimed(AD_AddressTokenMsg {
+            let update_msg = AD_MarkTokenIdClaimed(AD_AddressTokenMsg {
                 address: minter_addr.to_string(),
                 token: AD_TokenMsg {
                     collection_id: token.collection_id,
@@ -970,7 +970,7 @@ fn execute_clean_claimed_tokens_from_shuffle(
 
         let assigned_token_ids: Vec<AD_TokenMsg> = deps.querier.query_wasm_smart(
             addr,
-            &AirdropperQueryMsg::GetAssignedTokenIDs {
+            &AirdropperQueryMsg::GetAssignedTokenIds {
                 start_after: None,
                 limit: None,
             },
