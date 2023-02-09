@@ -5186,7 +5186,7 @@ mod tests {
 
             println!("config {:?}", config);
 
-            assert_ne!(1, 1);
+            //assert_ne!(1, 1);
         }
 
         #[test]
@@ -5300,7 +5300,111 @@ mod tests {
             println!("custom_bundle_tokens {:?}", custom_bundle_tokens);
             */
 
-            assert_ne!(1, 1);
+            //assert_ne!(1, 1);
+        }
+    }
+
+    mod mint_airdrop_claim {
+        use super::*;
+
+        #[test]
+        fn ad_airdrop_claim() {
+            let (mut app, cw_template_contract) =
+                proper_instantiate(true, true, true, Some(3), None);
+
+            let config: ConfigResponse = app
+                .wrap()
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetConfig {})
+                .unwrap();
+
+            // MAINTAINER EXECUTION
+            app.execute_contract(
+                Addr::unchecked(MAINTAINER_ADDR.to_owned()),
+                cw_template_contract.addr(),
+                &ExecuteMsg::SubmoduleHook(
+                    ExecutionTarget::Airdropper,
+                    CosmosMsg::Wasm(WasmMsg::Execute {
+                        contract_addr: config.airdropper_addr.clone().unwrap().into_string(),
+                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIds(vec![
+                            AD_AddressTokenMsg {
+                                address: USER.to_owned(),
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 1,
+                                },
+                            },
+                            AD_AddressTokenMsg {
+                                address: USER2.to_owned(),
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 2,
+                                },
+                            },
+                        ]))
+                        .unwrap(),
+                        funds: vec![],
+                    }),
+                ),
+                &[],
+            )
+            .unwrap();
+
+            // ADMIN EXECUTION
+            app.execute_contract(
+                Addr::unchecked(ADMIN.to_owned()),
+                cw_template_contract.addr(),
+                &ExecuteMsg::SubmoduleHook(
+                    ExecutionTarget::Airdropper,
+                    CosmosMsg::Wasm(WasmMsg::Execute {
+                        contract_addr: config.airdropper_addr.unwrap().into_string(),
+                        msg: to_binary(&AirdropperExecuteMsg::AddPromisedTokenIds(vec![
+                            AD_AddressTokenMsg {
+                                address: USER3.to_owned(),
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 3,
+                                },
+                            },
+                            AD_AddressTokenMsg {
+                                address: USER10.to_owned(),
+                                token: AD_TokenMsg {
+                                    collection_id: 101,
+                                    token_id: 5,
+                                },
+                            },
+                        ]))
+                        .unwrap(),
+                        funds: vec![],
+                    }),
+                ),
+                &[],
+            )
+            .unwrap();
+
+            // mint
+            app.execute_contract(
+                Addr::unchecked(ADMIN.to_owned()),
+                cw_template_contract.addr(),
+                &ExecuteMsg::CleanClaimedTokensFromShuffle {},
+                &[],
+            )
+            .unwrap();
+
+            app.update_block(|mut block| {
+                block.time = Timestamp::from_seconds(AIRDROPPER_START_TIME)
+            });
+            app.update_block(|mut block| block.height += 1);
+
+            // mint
+            app.execute_contract(
+                Addr::unchecked(USER10.to_owned()),
+                cw_template_contract.addr(),
+                &ExecuteMsg::AirdropClaim {
+                    minter_address: None,
+                },
+                &[],
+            )
+            .unwrap();
         }
     }
 

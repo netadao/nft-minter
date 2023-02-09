@@ -1469,6 +1469,10 @@ fn process_and_get_mint_msg(
     let collection_length = collection_token_ids.len() - 1;
 
     if token_id.is_none() || token_index.unwrap_or(0) > (collection_length as u32) {
+        token_index = Some(token_index.unwrap_or(0));
+        if token_index.unwrap_or(0) > (collection_length as u32) {
+            token_index = Some(collection_length as u32);
+        }
         token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
     }
 
@@ -1505,6 +1509,8 @@ fn process_and_get_mint_msg(
 
     // remove token from vec by swapping the item at token index to the end of the vec
     // then resize the vec to the new length and save
+    // this may have been performed by the clean_shuffle function so the tokens will not
+    // be in the collection arrays
     if let Some(idx) = token_index {
         collection_token_ids.swap(idx as usize, collection_length);
         collection_token_ids.resize(collection_length, 0);
@@ -1523,8 +1529,6 @@ fn process_and_get_mint_msg(
         }
 
         CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
-    } else {
-        return Err(ContractError::UnableToMint {});
     }
 
     Ok(msg)
