@@ -26,27 +26,27 @@ fn main() {
     export_schema_with_title(
         &schema_for!(Vec<AddressPromisedTokensResponse>),
         &out_dir,
-        "GetAddressPromisedTokenIDsResponse",
+        "GetAddressPromisedTokenIdsResponse",
     );
     export_schema_with_title(
         &schema_for!(Vec<TokenMsg>),
         &out_dir,
-        "GetAssignedTokenIDsResponse",
+        "GetAssignedTokenIdsResponse",
     );
     export_schema_with_title(
         &schema_for!(Vec<AddressTokenMsg>),
         &out_dir,
-        "GetAssignedTokenIDsWithAddressResponse",
+        "GetAssignedTokenIdsWithAddressResponse",
     );
     export_schema_with_title(
         &schema_for!(Vec<TokenMsg>),
         &out_dir,
-        "GetClaimedTokenIDsResponse",
+        "GetClaimedTokenIdsResponse",
     );
     export_schema_with_title(
         &schema_for!(Vec<AddressTokenMsg>),
         &out_dir,
-        "GetClaimedTokenIDsWithAddressResponse",
+        "GetClaimedTokenIdsWithAddressResponse",
     );
     export_schema_with_title(
         &schema_for!(Vec<AddressValMsg>),

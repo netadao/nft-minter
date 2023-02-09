@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { Coin, StdFee } from "@cosmjs/amino";
-import { Addr, CheckAddressPromisedMintsResponse, CheckAddressPromisedTokensResponse, TokenMsg, Timestamp, Uint64, Config, ExecuteMsg, InstantiateMsg, AddressTokenMsg, AddressValMsg, GetAddressPromisedMintsResponse, GetAddressPromisedTokenIDsResponse, AddressPromisedTokensResponse, GetAssignedTokenIDsResponse, GetAssignedTokenIDsWithAddressResponse, GetClaimedAddressPromisedMintsResponse, GetClaimedTokenIDsResponse, GetClaimedTokenIDsWithAddressResponse, GetConfigResponse, QueryMsg } from "./Airdropper.types";
+import { Addr, CheckAddressPromisedMintsResponse, CheckAddressPromisedTokensResponse, TokenMsg, Timestamp, Uint64, Config, ExecuteMsg, InstantiateMsg, AddressTokenMsg, AddressValMsg, GetAddressPromisedMintsResponse, GetAddressPromisedTokenIdsResponse, AddressPromisedTokensResponse, GetAssignedTokenIdsResponse, GetAssignedTokenIdsWithAddressResponse, GetClaimedAddressPromisedMintsResponse, GetClaimedTokenIdsResponse, GetClaimedTokenIdsWithAddressResponse, GetConfigResponse, QueryMsg } from "./Airdropper.types";
 export interface AirdropperReadOnlyInterface {
   contractAddress: string;
   getConfig: () => Promise<GetConfigResponse>;

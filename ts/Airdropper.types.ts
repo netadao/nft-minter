@@ -64,16 +64,16 @@ export interface AddressValMsg {
   value: number;
 }
 export type GetAddressPromisedMintsResponse = AddressValMsg[];
-export type GetAddressPromisedTokenIDsResponse = AddressPromisedTokensResponse[];
+export type GetAddressPromisedTokenIdsResponse = AddressPromisedTokensResponse[];
 export interface AddressPromisedTokensResponse {
   address: string;
   token_ids: TokenMsg[];
 }
-export type GetAssignedTokenIDsResponse = TokenMsg[];
-export type GetAssignedTokenIDsWithAddressResponse = AddressTokenMsg[];
+export type GetAssignedTokenIdsResponse = TokenMsg[];
+export type GetAssignedTokenIdsWithAddressResponse = AddressTokenMsg[];
 export type GetClaimedAddressPromisedMintsResponse = AddressValMsg[];
-export type GetClaimedTokenIDsResponse = TokenMsg[];
-export type GetClaimedTokenIDsWithAddressResponse = AddressTokenMsg[];
+export type GetClaimedTokenIdsResponse = TokenMsg[];
+export type GetClaimedTokenIdsWithAddressResponse = AddressTokenMsg[];
 export interface GetConfigResponse {
   admin: Addr;
   end_time?: Timestamp | null;

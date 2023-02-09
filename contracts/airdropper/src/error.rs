@@ -13,16 +13,16 @@ pub enum ContractError {
     InvalidStartTime {},
 
     #[error("TokenID: {0}-{1} already assigned")]
-    TokenIDAlreadyAssigned(u64, u32),
+    TokenIdAlreadyAssigned(u64, u32),
 
     #[error("User was not promised this token id")]
     InvalidUserNotPromisedToken {},
 
     #[error("Token ID chosen is greater than max: {max} input:{input}")]
-    InvalidTokenIDAssignment { max: u32, input: u32 },
+    InvalidTokenIdAssignment { max: u32, input: u32 },
 
     #[error("TokenID: {0} already claimed by address:{1}")]
-    TokenIDAlreadyClaimed(u64, u32, String),
+    TokenIdAlreadyClaimed(u64, u32, String),
 
     #[error("User has already reached their max mints: {0}")]
     ReachedMaxMints(u32),

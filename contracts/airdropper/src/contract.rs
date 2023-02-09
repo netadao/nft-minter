@@ -166,7 +166,7 @@ fn execute_add_promised_token_ids(
         );
         // check if token has already been assigned
         if ASSIGNED_TOKEN_IDS.has(deps.storage, token) {
-            return Err(ContractError::TokenIDAlreadyAssigned(token.0, token.1));
+            return Err(ContractError::TokenIdAlreadyAssigned(token.0, token.1));
         }
 
         let mut address_assigned_token_ids: Vec<(u64, u32)> = vec![];
@@ -317,7 +317,7 @@ fn execute_mark_token_id_claimed(
     // this should probably never happen
     if CLAIMED_TOKEN_IDS.has(deps.storage, token_id) {
         let addr: Addr = CLAIMED_TOKEN_IDS.load(deps.storage, token_id)?;
-        return Err(ContractError::TokenIDAlreadyClaimed(
+        return Err(ContractError::TokenIdAlreadyClaimed(
             token_id.0,
             token_id.1,
             addr.to_string(),
