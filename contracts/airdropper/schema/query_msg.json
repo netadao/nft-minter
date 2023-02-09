@@ -20,10 +20,10 @@
       "description": "Lists all promised token_ids for addresses from `ADDRESS_PROMISED_TOKEN_IDS` default sort is ASCENDING by ADDRESS. returns `Vec<AddressPromisedTokens>` which is in Vec(address-Vec[u32]) form",
       "type": "object",
       "required": [
-        "get_address_promised_token_i_ds"
+        "get_address_promised_token_ids"
       ],
       "properties": {
-        "get_address_promised_token_i_ds": {
+        "get_address_promised_token_ids": {
           "type": "object",
           "properties": {
             "limit": {
@@ -51,10 +51,10 @@
       "description": "Lists all token_ids that have been assigned in `ASSIGNED_TOKEN_IDS` default sort is ASCENDING by token_id. returns Vec<u32>",
       "type": "object",
       "required": [
-        "get_assigned_token_i_ds"
+        "get_assigned_token_ids"
       ],
       "properties": {
-        "get_assigned_token_i_ds": {
+        "get_assigned_token_ids": {
           "type": "object",
           "properties": {
             "limit": {
@@ -96,10 +96,10 @@
       "description": "Lists all assigned token_id-address pairs in `ASSIGNED_TOKEN_IDS` default sort is ASCENDING by token_id. returns Vec<AddressValMsg>",
       "type": "object",
       "required": [
-        "get_assigned_token_i_ds_with_address"
+        "get_assigned_token_ids_with_address"
       ],
       "properties": {
-        "get_assigned_token_i_ds_with_address": {
+        "get_assigned_token_ids_with_address": {
           "type": "object",
           "properties": {
             "limit": {
@@ -111,7 +111,7 @@
               "minimum": 0.0
             },
             "start_after": {
-              "description": "token_id",
+              "description": "(collection_id, token_id)",
               "type": [
                 "array",
                 "null"
@@ -141,10 +141,10 @@
       "description": "Lists all token_ids that are claimed in `CLAIMED_TOKEN_IDS` default sort is ASCENDING by token_id. returns Vec<u32>",
       "type": "object",
       "required": [
-        "get_claimed_token_i_ds"
+        "get_claimed_token_ids"
       ],
       "properties": {
-        "get_claimed_token_i_ds": {
+        "get_claimed_token_ids": {
           "type": "object",
           "properties": {
             "limit": {
@@ -156,7 +156,7 @@
               "minimum": 0.0
             },
             "start_after": {
-              "description": "token_id",
+              "description": "(collection_id, token_id)",
               "type": [
                 "array",
                 "null"
@@ -186,10 +186,10 @@
       "description": "Lists all token_ids and which address claimed themin `CLAIMED_TOKEN_IDS` default sort is ASCENDING by token_id. returns Vec<AddressValMsg>",
       "type": "object",
       "required": [
-        "get_claimed_token_i_ds_with_address"
+        "get_claimed_token_ids_with_address"
       ],
       "properties": {
-        "get_claimed_token_i_ds_with_address": {
+        "get_claimed_token_ids_with_address": {
           "type": "object",
           "properties": {
             "limit": {
@@ -201,7 +201,7 @@
               "minimum": 0.0
             },
             "start_after": {
-              "description": "token_id",
+              "description": "(collection_id, token_id)",
               "type": [
                 "array",
                 "null"

@@ -11,6 +11,7 @@
     "custom_bundle_content_count",
     "custom_bundle_enabled",
     "custom_bundle_mint_price",
+    "escrow_funds",
     "extension",
     "max_per_address_bundle_mint",
     "max_per_address_mint",
@@ -73,6 +74,9 @@
           "type": "null"
         }
       ]
+    },
+    "escrow_funds": {
+      "type": "boolean"
     },
     "extension": {
       "description": "data we'll pass to the cw721 contract when a token is minted",

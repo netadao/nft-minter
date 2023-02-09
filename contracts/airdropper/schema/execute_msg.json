@@ -32,13 +32,13 @@
       "additionalProperties": false
     },
     {
-      "description": "Value used here is a `token_id`. This function will validate the token_id and add it to an address' list of promised `token_id`s",
+      "description": "`Value` used here is a `token_id`. This function will validate the token_id and add it to an address' list of promised `token_id`s",
       "type": "object",
       "required": [
-        "add_promised_token_i_ds"
+        "add_promised_token_ids"
       ],
       "properties": {
-        "add_promised_token_i_ds": {
+        "add_promised_token_ids": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/AddressTokenMsg"
@@ -51,10 +51,10 @@
       "description": "For every `token_id` passed in, grab the address it was promised to, then remove it from that address' promised tokens. Also remove it from the assigned list that tracks which address it was promised to",
       "type": "object",
       "required": [
-        "remove_promised_token_i_ds"
+        "remove_promised_token_ids"
       ],
       "properties": {
-        "remove_promised_token_i_ds": {
+        "remove_promised_token_ids": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/TokenMsg"
@@ -64,7 +64,7 @@
       "additionalProperties": false
     },
     {
-      "description": "Given an a list of addresses, we'll iterate through and unassign each token_id from the assigned tokens tracker and then remove the address",
+      "description": "Given an a list of addresses, we'll iterate through and unassign each token_id from the assigned tokens tracker and then remove the address this will remove ALL promised token ids for an address",
       "type": "object",
       "required": [
         "remove_promised_tokens_by_address"
@@ -115,10 +115,10 @@
       "description": "Marks a token_id as claimed by an address",
       "type": "object",
       "required": [
-        "mark_token_i_d_claimed"
+        "mark_token_id_claimed"
       ],
       "properties": {
-        "mark_token_i_d_claimed": {
+        "mark_token_id_claimed": {
           "$ref": "#/definitions/AddressTokenMsg"
         }
       },
@@ -191,6 +191,7 @@
       ],
       "properties": {
         "end_time": {
+          "description": "hard stop for claims todo: implement stop. for s1 of project, no end time for claiming",
           "anyOf": [
             {
               "$ref": "#/definitions/Timestamp"
@@ -201,13 +202,19 @@
           ]
         },
         "maintainer_address": {
+          "description": "alternate address for maintaining/management of this contract",
           "type": [
             "string",
             "null"
           ]
         },
         "start_time": {
-          "$ref": "#/definitions/Timestamp"
+          "description": "start time for the airdropper portion of the campaign",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            }
+          ]
         }
       },
       "additionalProperties": false

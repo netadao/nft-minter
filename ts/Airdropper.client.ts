@@ -10,41 +10,41 @@ import { Addr, CheckAddressPromisedMintsResponse, CheckAddressPromisedTokensResp
 export interface AirdropperReadOnlyInterface {
   contractAddress: string;
   getConfig: () => Promise<GetConfigResponse>;
-  getAddressPromisedTokenIDs: ({
+  getAddressPromisedTokenIds: ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: string;
-  }) => Promise<GetAddressPromisedTokenIDsResponse>;
-  getAssignedTokenIDs: ({
+  }) => Promise<GetAddressPromisedTokenIdsResponse>;
+  getAssignedTokenIds: ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: number[][];
-  }) => Promise<GetAssignedTokenIDsResponse>;
-  getAssignedTokenIDsWithAddress: ({
+  }) => Promise<GetAssignedTokenIdsResponse>;
+  getAssignedTokenIdsWithAddress: ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: number[][];
-  }) => Promise<GetAssignedTokenIDsWithAddressResponse>;
-  getClaimedTokenIDs: ({
+  }) => Promise<GetAssignedTokenIdsWithAddressResponse>;
+  getClaimedTokenIds: ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: number[][];
-  }) => Promise<GetClaimedTokenIDsResponse>;
-  getClaimedTokenIDsWithAddress: ({
+  }) => Promise<GetClaimedTokenIdsResponse>;
+  getClaimedTokenIdsWithAddress: ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: number[][];
-  }) => Promise<GetClaimedTokenIDsWithAddressResponse>;
+  }) => Promise<GetClaimedTokenIdsWithAddressResponse>;
   getAddressPromisedMints: ({
     limit,
     startAfter
@@ -78,11 +78,11 @@ export class AirdropperQueryClient implements AirdropperReadOnlyInterface {
     this.client = client;
     this.contractAddress = contractAddress;
     this.getConfig = this.getConfig.bind(this);
-    this.getAddressPromisedTokenIDs = this.getAddressPromisedTokenIDs.bind(this);
-    this.getAssignedTokenIDs = this.getAssignedTokenIDs.bind(this);
-    this.getAssignedTokenIDsWithAddress = this.getAssignedTokenIDsWithAddress.bind(this);
-    this.getClaimedTokenIDs = this.getClaimedTokenIDs.bind(this);
-    this.getClaimedTokenIDsWithAddress = this.getClaimedTokenIDsWithAddress.bind(this);
+    this.getAddressPromisedTokenIds = this.getAddressPromisedTokenIds.bind(this);
+    this.getAssignedTokenIds = this.getAssignedTokenIds.bind(this);
+    this.getAssignedTokenIdsWithAddress = this.getAssignedTokenIdsWithAddress.bind(this);
+    this.getClaimedTokenIds = this.getClaimedTokenIds.bind(this);
+    this.getClaimedTokenIdsWithAddress = this.getClaimedTokenIdsWithAddress.bind(this);
     this.getAddressPromisedMints = this.getAddressPromisedMints.bind(this);
     this.getClaimedAddressPromisedMints = this.getClaimedAddressPromisedMints.bind(this);
     this.checkAddressPromisedMints = this.checkAddressPromisedMints.bind(this);
@@ -94,71 +94,71 @@ export class AirdropperQueryClient implements AirdropperReadOnlyInterface {
       get_config: {}
     });
   };
-  getAddressPromisedTokenIDs = async ({
+  getAddressPromisedTokenIds = async ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: string;
-  }): Promise<GetAddressPromisedTokenIDsResponse> => {
+  }): Promise<GetAddressPromisedTokenIdsResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      get_address_promised_token_i_ds: {
+      get_address_promised_token_ids: {
         limit,
         start_after: startAfter
       }
     });
   };
-  getAssignedTokenIDs = async ({
+  getAssignedTokenIds = async ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: number[][];
-  }): Promise<GetAssignedTokenIDsResponse> => {
+  }): Promise<GetAssignedTokenIdsResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      get_assigned_token_i_ds: {
+      get_assigned_token_ids: {
         limit,
         start_after: startAfter
       }
     });
   };
-  getAssignedTokenIDsWithAddress = async ({
+  getAssignedTokenIdsWithAddress = async ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: number[][];
-  }): Promise<GetAssignedTokenIDsWithAddressResponse> => {
+  }): Promise<GetAssignedTokenIdsWithAddressResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      get_assigned_token_i_ds_with_address: {
+      get_assigned_token_ids_with_address: {
         limit,
         start_after: startAfter
       }
     });
   };
-  getClaimedTokenIDs = async ({
+  getClaimedTokenIds = async ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: number[][];
-  }): Promise<GetClaimedTokenIDsResponse> => {
+  }): Promise<GetClaimedTokenIdsResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      get_claimed_token_i_ds: {
+      get_claimed_token_ids: {
         limit,
         start_after: startAfter
       }
     });
   };
-  getClaimedTokenIDsWithAddress = async ({
+  getClaimedTokenIdsWithAddress = async ({
     limit,
     startAfter
   }: {
     limit?: number;
     startAfter?: number[][];
-  }): Promise<GetClaimedTokenIDsWithAddressResponse> => {
+  }): Promise<GetClaimedTokenIdsWithAddressResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      get_claimed_token_i_ds_with_address: {
+      get_claimed_token_ids_with_address: {
         limit,
         start_after: startAfter
       }
@@ -228,12 +228,12 @@ export interface AirdropperInterface extends AirdropperReadOnlyInterface {
     startTime: Timestamp;
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   updateMaintainerAddress: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-  addPromisedTokenIDs: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-  removePromisedTokenIDs: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+  addPromisedTokenIds: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+  removePromisedTokenIds: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   removePromisedTokensByAddress: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   addPromisedMints: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   removePromisedMints: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-  markTokenIDClaimed: ({
+  markTokenIdClaimed: ({
     address,
     token
   }: {
@@ -254,12 +254,12 @@ export class AirdropperClient extends AirdropperQueryClient implements Airdroppe
     this.contractAddress = contractAddress;
     this.updateConfig = this.updateConfig.bind(this);
     this.updateMaintainerAddress = this.updateMaintainerAddress.bind(this);
-    this.addPromisedTokenIDs = this.addPromisedTokenIDs.bind(this);
-    this.removePromisedTokenIDs = this.removePromisedTokenIDs.bind(this);
+    this.addPromisedTokenIds = this.addPromisedTokenIds.bind(this);
+    this.removePromisedTokenIds = this.removePromisedTokenIds.bind(this);
     this.removePromisedTokensByAddress = this.removePromisedTokensByAddress.bind(this);
     this.addPromisedMints = this.addPromisedMints.bind(this);
     this.removePromisedMints = this.removePromisedMints.bind(this);
-    this.markTokenIDClaimed = this.markTokenIDClaimed.bind(this);
+    this.markTokenIdClaimed = this.markTokenIdClaimed.bind(this);
     this.incrementAddressClaimedPromisedMintCount = this.incrementAddressClaimedPromisedMintCount.bind(this);
   }
 
@@ -285,14 +285,14 @@ export class AirdropperClient extends AirdropperQueryClient implements Airdroppe
       update_maintainer_address: {}
     }, fee, memo, funds);
   };
-  addPromisedTokenIDs = async (fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
+  addPromisedTokenIds = async (fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      add_promised_token_i_ds: {}
+      add_promised_token_ids: {}
     }, fee, memo, funds);
   };
-  removePromisedTokenIDs = async (fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
+  removePromisedTokenIds = async (fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      remove_promised_token_i_ds: {}
+      remove_promised_token_ids: {}
     }, fee, memo, funds);
   };
   removePromisedTokensByAddress = async (fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
@@ -310,7 +310,7 @@ export class AirdropperClient extends AirdropperQueryClient implements Airdroppe
       remove_promised_mints: {}
     }, fee, memo, funds);
   };
-  markTokenIDClaimed = async ({
+  markTokenIdClaimed = async ({
     address,
     token
   }: {
@@ -318,7 +318,7 @@ export class AirdropperClient extends AirdropperQueryClient implements Airdroppe
     token: TokenMsg;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      mark_token_i_d_claimed: {
+      mark_token_id_claimed: {
         address,
         token
       }

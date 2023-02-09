@@ -8,6 +8,7 @@
   ],
   "properties": {
     "end_time": {
+      "description": "hard stop for claims todo: implement stop. for s1 of project, no end time for claiming",
       "anyOf": [
         {
           "$ref": "#/definitions/Timestamp"
@@ -18,13 +19,19 @@
       ]
     },
     "maintainer_address": {
+      "description": "alternate address for maintaining/management of this contract",
       "type": [
         "string",
         "null"
       ]
     },
     "start_time": {
-      "$ref": "#/definitions/Timestamp"
+      "description": "start time for the airdropper portion of the campaign",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Timestamp"
+        }
+      ]
     }
   },
   "additionalProperties": false,

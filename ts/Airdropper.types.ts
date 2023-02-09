@@ -36,9 +36,9 @@ export type ExecuteMsg = {
 } | {
   update_maintainer_address: string | null;
 } | {
-  add_promised_token_i_ds: AddressTokenMsg[];
+  add_promised_token_ids: AddressTokenMsg[];
 } | {
-  remove_promised_token_i_ds: TokenMsg[];
+  remove_promised_token_ids: TokenMsg[];
 } | {
   remove_promised_tokens_by_address: string[];
 } | {
@@ -46,7 +46,7 @@ export type ExecuteMsg = {
 } | {
   remove_promised_mints: string[];
 } | {
-  mark_token_i_d_claimed: AddressTokenMsg;
+  mark_token_id_claimed: AddressTokenMsg;
 } | {
   increment_address_claimed_promised_mint_count: string;
 };
@@ -83,27 +83,27 @@ export interface GetConfigResponse {
 export type QueryMsg = {
   get_config: {};
 } | {
-  get_address_promised_token_i_ds: {
+  get_address_promised_token_ids: {
     limit?: number | null;
     start_after?: string | null;
   };
 } | {
-  get_assigned_token_i_ds: {
+  get_assigned_token_ids: {
     limit?: number | null;
     start_after?: [number, number] | null;
   };
 } | {
-  get_assigned_token_i_ds_with_address: {
+  get_assigned_token_ids_with_address: {
     limit?: number | null;
     start_after?: [number, number] | null;
   };
 } | {
-  get_claimed_token_i_ds: {
+  get_claimed_token_ids: {
     limit?: number | null;
     start_after?: [number, number] | null;
   };
 } | {
-  get_claimed_token_i_ds_with_address: {
+  get_claimed_token_ids_with_address: {
     limit?: number | null;
     start_after?: [number, number] | null;
   };

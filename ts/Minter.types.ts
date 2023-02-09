@@ -276,6 +276,7 @@ export interface GetConfigResponse {
   custom_bundle_enabled: boolean;
   custom_bundle_mint_price: Uint128;
   end_time?: Timestamp | null;
+  escrow_funds: boolean;
   extension: SharedCollectionInfo;
   maintainer_addr?: Addr | null;
   max_per_address_bundle_mint: number;
