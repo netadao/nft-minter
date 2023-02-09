@@ -1385,7 +1385,7 @@ fn execute_mint_custom_bundle(
         current_token_supply -= 1;
 
         // this will remove these tokens from the main lists
-        let res = process_and_get_mint_msg_2(
+        let res = process_and_get_mint_msg_custom_collection_token_ids_vec(
             deps.branch(),
             info.sender.clone(),
             current_token_supply,
@@ -1534,8 +1534,8 @@ fn process_and_get_mint_msg(
     Ok(msg)
 }
 
-/// also stores
-fn process_and_get_mint_msg_2(
+/// accepts a custom collection token ids to be trimmed and returned
+fn process_and_get_mint_msg_custom_collection_token_ids_vec(
     deps: DepsMut,
     minter_addr: Addr,
     new_current_token_supply: u32,
@@ -1553,6 +1553,10 @@ fn process_and_get_mint_msg_2(
     let collection_length = collection_token_ids.len() - 1;
 
     if token_id.is_none() || token_index.unwrap_or(0) > (collection_length as u32) {
+        token_index = Some(token_index.unwrap_or(0));
+        if token_index.unwrap_or(0) > (collection_length as u32) {
+            token_index = Some(collection_length as u32);
+        }
         token_id = Some(collection_token_ids[token_index.unwrap() as usize]);
     }
 
@@ -1605,8 +1609,6 @@ fn process_and_get_mint_msg_2(
         }
 
         CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
-    } else {
-        return Err(ContractError::UnableToMint {});
     }
 
     Ok((msg, collection_token_ids))
