@@ -25,7 +25,7 @@ use airdropper::{
 };
 use cosmwasm_std::{
     coin, entry_point, to_binary, Addr, BankMsg, Coin, CosmosMsg, Deps, DepsMut, Empty, Env,
-    MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -41,12 +41,12 @@ use std::cmp;
 use std::collections::BTreeMap;
 
 use whitelist::{
-    msg::CheckWhitelistResponse,
     msg::ExecuteMsg::{
         UpdateAddressMintTracker as WL_UpdateAddressMintTracker,
         UpdateMaintainerAddress as WL_UpdateMaintainerAddress,
     },
     msg::QueryMsg as WhitelistQueryMsg,
+    msg::{CheckWhitelistResponse, ConfigResponse as WlConfigResponse},
 };
 
 // version info for migration info
@@ -742,7 +742,19 @@ fn execute_mint_bundle(
         ));
     }
 
-    if config.start_time <= env.block.time {
+    let mut wl_start_time: Option<Timestamp> = None;
+
+    if let Some(addr) = WHITELIST_ADDR.may_load(deps.storage)? {
+        let wl_config: WlConfigResponse = deps
+            .querier
+            .query_wasm_smart(addr, &WhitelistQueryMsg::GetConfig {})?;
+
+        wl_start_time = Some(wl_config.start_time);
+    }
+
+    if config.start_time <= env.block.time
+        || wl_start_time.unwrap_or(config.start_time) <= env.block.time
+    {
         return _execute_mint_bundle(deps, env, info, current_token_supply);
     }
 
@@ -1270,6 +1282,22 @@ fn execute_mint_custom_bundle(
     }
     let mut res = Response::new();
     let config = CONFIG.load(deps.storage)?;
+
+    let mut wl_start_time: Option<Timestamp> = None;
+
+    if let Some(addr) = WHITELIST_ADDR.may_load(deps.storage)? {
+        let wl_config: WlConfigResponse = deps
+            .querier
+            .query_wasm_smart(addr, &WhitelistQueryMsg::GetConfig {})?;
+
+        wl_start_time = Some(wl_config.start_time);
+    }
+
+    if env.block.time < config.start_time
+        && env.block.time < wl_start_time.unwrap_or(config.start_time)
+    {
+        return Err(ContractError::BeforeStartTime {});
+    }
 
     if env.block.time < config.start_time {
         return Err(ContractError::BeforeStartTime {});
@@ -1933,32 +1961,32 @@ fn check_whitelist(
     info: &MessageInfo,
 ) -> Result<MintParametersResponse, ContractError> {
     if let Some(whitelist_addr) = WHITELIST_ADDR.may_load(deps.storage)? {
-        let wl_config: CheckWhitelistResponse = deps.querier.query_wasm_smart(
+        let wl_response: CheckWhitelistResponse = deps.querier.query_wasm_smart(
             whitelist_addr,
             &WhitelistQueryMsg::CheckWhitelist {
                 minter_address: info.sender.clone().to_string(),
             },
         )?;
 
-        if !wl_config.is_on_whitelist {
+        if !wl_response.is_on_whitelist {
             return Err(ContractError::NotOnWhitelist {});
         }
 
         // must NOT be closed. AND in progress AND user is on whitelist
-        if !wl_config.whitelist_is_closed {
-            if !wl_config.whitelist_in_progress {
+        if !wl_response.whitelist_is_closed {
+            if !wl_response.whitelist_in_progress {
                 return Err(ContractError::WhitelistNotInProgress {});
             }
 
-            if wl_config.current_mint_count >= wl_config.max_per_address_mint {
+            if wl_response.current_mint_count >= wl_response.max_per_address_mint {
                 return Err(ContractError::WhitelistMaxMintReached(
-                    wl_config.max_per_address_mint,
+                    wl_response.max_per_address_mint,
                 ));
             }
 
             Ok(MintParametersResponse {
                 can_mint: true,
-                mint_price: Some(wl_config.mint_price),
+                mint_price: Some(wl_response.mint_price),
                 remaining_token_ids: vec![],
             })
         } else {
