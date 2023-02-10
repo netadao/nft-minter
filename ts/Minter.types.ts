@@ -46,8 +46,6 @@ export interface RoyaltyInfo {
 export type ExecuteMsg = {
   update_config: BaseInitMsg;
 } | {
-  init_submodule: [number, ModuleInstantiateInfo];
-} | {
   mint: {
     is_promised_mint: boolean;
     minter_address?: string | null;
@@ -76,16 +74,6 @@ export type ExecuteMsg = {
 } | {
   mint_custom_bundle: {};
 };
-export type Admin = {
-  address: {
-    address: string;
-  };
-} | {
-  core_contract: {};
-} | {
-  none: {};
-};
-export type Binary = string;
 export type ExecutionTarget = "none" | "airdropper" | "whitelist";
 export type CosmosMsgForEmpty = {
   bank: BankMsg;
@@ -151,6 +139,7 @@ export type DistributionMsg = {
     [k: string]: unknown;
   };
 };
+export type Binary = string;
 export type IbcMsg = {
   transfer: {
     amount: Coin;
@@ -229,12 +218,6 @@ export interface BaseInitMsg {
   start_time: Timestamp;
   whitelist_address?: string | null;
 }
-export interface ModuleInstantiateInfo {
-  admin: Admin;
-  code_id: number;
-  label: string;
-  msg: Binary;
-}
 export interface Coin {
   amount: Uint128;
   denom: string;
@@ -312,6 +295,15 @@ export interface GetRemainingTokensResponse {
   remaining_token_supply: number;
   total_token_supply: number;
 }
+export type Admin = {
+  address: {
+    address: string;
+  };
+} | {
+  core_contract: {};
+} | {
+  none: {};
+};
 export interface InstantiateMsg {
   airdropper_instantiate_info?: ModuleInstantiateInfo | null;
   base_fields: BaseInitMsg;
@@ -320,6 +312,12 @@ export interface InstantiateMsg {
   name: string;
   token_code_id: number;
   whitelist_instantiate_info?: ModuleInstantiateInfo | null;
+}
+export interface ModuleInstantiateInfo {
+  admin: Admin;
+  code_id: number;
+  label: string;
+  msg: Binary;
 }
 export interface CollectionInfoMsg {
   base_token_uri: string;

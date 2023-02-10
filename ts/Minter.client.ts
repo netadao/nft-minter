@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import { CheckAddressMintsResponse, Addr, Uint128, Timestamp, Uint64, Config, SharedCollectionInfo, RoyaltyInfo, ExecuteMsg, Admin, Binary, ExecutionTarget, CosmosMsgForEmpty, BankMsg, StakingMsg, DistributionMsg, IbcMsg, WasmMsg, GovMsg, VoteOption, BaseInitMsg, ModuleInstantiateInfo, Coin, Empty, IbcTimeout, IbcTimeoutBlock, TokenMsg, GetAddressMintsResponse, AddressValMsg, GetBundleMintTrackerResponse, GetCW721AddrsResponse, GetCollectionCurrentTokenSupplyResponse, GetConfigResponse, GetCw721CollectionInfoResponse, CollectionInfo, GetEscrowBalancesResponse, AddrBal, GetRemainingTokensResponse, InstantiateMsg, CollectionInfoMsg, SharedCollectionInfoMsg, RoyaltyInfoMsg, QueryMsg } from "./Minter.types";
+import { CheckAddressMintsResponse, Addr, Uint128, Timestamp, Uint64, Config, SharedCollectionInfo, RoyaltyInfo, ExecuteMsg, ExecutionTarget, CosmosMsgForEmpty, BankMsg, StakingMsg, DistributionMsg, Binary, IbcMsg, WasmMsg, GovMsg, VoteOption, BaseInitMsg, Coin, Empty, IbcTimeout, IbcTimeoutBlock, TokenMsg, GetAddressMintsResponse, AddressValMsg, GetBundleMintTrackerResponse, GetCW721AddrsResponse, GetCollectionCurrentTokenSupplyResponse, GetConfigResponse, GetCw721CollectionInfoResponse, CollectionInfo, GetEscrowBalancesResponse, AddrBal, GetRemainingTokensResponse, Admin, InstantiateMsg, ModuleInstantiateInfo, CollectionInfoMsg, SharedCollectionInfoMsg, RoyaltyInfoMsg, QueryMsg } from "./Minter.types";
 export interface MinterReadOnlyInterface {
   contractAddress: string;
   getConfig: () => Promise<GetConfigResponse>;
@@ -208,7 +208,6 @@ export interface MinterInterface extends MinterReadOnlyInterface {
     startTime: Timestamp;
     whitelistAddress?: string;
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-  initSubmodule: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   mint: ({
     isPromisedMint,
     minterAddress
@@ -250,7 +249,6 @@ export class MinterClient extends MinterQueryClient implements MinterInterface {
     this.sender = sender;
     this.contractAddress = contractAddress;
     this.updateConfig = this.updateConfig.bind(this);
-    this.initSubmodule = this.initSubmodule.bind(this);
     this.mint = this.mint.bind(this);
     this.mintBundle = this.mintBundle.bind(this);
     this.airdropClaim = this.airdropClaim.bind(this);
@@ -304,11 +302,6 @@ export class MinterClient extends MinterQueryClient implements MinterInterface {
         start_time: startTime,
         whitelist_address: whitelistAddress
       }
-    }, fee, memo, funds);
-  };
-  initSubmodule = async (fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
-    return await this.client.execute(this.sender, this.contractAddress, {
-      init_submodule: {}
     }, fee, memo, funds);
   };
   mint = async ({
