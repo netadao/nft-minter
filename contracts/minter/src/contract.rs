@@ -610,7 +610,7 @@ fn _execute_mint(
         return Err(ContractError::MintCompleted {});
     }
 
-    let config = CONFIG.load(deps.storage)?;
+    let mut config = CONFIG.load(deps.storage)?;
 
     // check payment
     let payment = may_pay(&info, &config.mint_denom)?;
@@ -628,14 +628,35 @@ fn _execute_mint(
     let (collection_id, token_index) =
         randomize_and_draw_mint(deps.as_ref(), &env, info.sender, None)?;
 
-    res = res.add_message(process_and_get_mint_msg(
+    let mut custom_collection_token_ids: Vec<(u64, u32)> = vec![];
+
+    if config.custom_bundle_enabled && !config.custom_bundle_completed {
+        custom_collection_token_ids = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
+    }
+
+    let _res = process_and_get_mint_msg(
         deps.branch(),
         minter_addr.clone(),
         current_token_supply - 1,
         collection_id,
         None,
         Some(token_index),
-    )?);
+        custom_collection_token_ids,
+    )?;
+
+    res = res.add_message(_res.0);
+    custom_collection_token_ids = _res.1;
+
+    if config.custom_bundle_enabled && !config.custom_bundle_completed {
+        CUSTOM_BUNDLE_TOKENS.save(deps.storage, &custom_collection_token_ids)?;
+
+        if (custom_collection_token_ids.len() as u32) < config.custom_bundle_content_count
+            && !config.custom_bundle_completed
+        {
+            config.custom_bundle_completed = true;
+            CONFIG.save(deps.storage, &config)?;
+        }
+    }
 
     match mint_type {
         MintType::Public => {
@@ -768,7 +789,7 @@ fn _execute_mint_bundle(
     info: MessageInfo,
     mut current_token_supply: u32,
 ) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
+    let mut config = CONFIG.load(deps.storage)?;
 
     // address - address
     // value - collection_id
@@ -786,6 +807,12 @@ fn _execute_mint_bundle(
 
     let mut res: Response = Response::new();
 
+    let mut custom_collection_token_ids: Vec<(u64, u32)> = vec![];
+
+    if config.custom_bundle_enabled && !config.custom_bundle_completed {
+        custom_collection_token_ids = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
+    }
+
     for collection in collections {
         current_token_supply -= 1;
 
@@ -799,14 +826,29 @@ fn _execute_mint_bundle(
             collection_current_token_supply,
         )?;
 
-        res = res.add_message(process_and_get_mint_msg(
+        let _res = process_and_get_mint_msg(
             deps.branch(),
             info.sender.clone(),
             current_token_supply,
             collection.value as u64,
             None,
             Some(token_index),
-        )?);
+            custom_collection_token_ids,
+        )?;
+
+        res = res.add_message(_res.0);
+        custom_collection_token_ids = _res.1;
+    }
+
+    if config.custom_bundle_enabled && !config.custom_bundle_completed {
+        CUSTOM_BUNDLE_TOKENS.save(deps.storage, &custom_collection_token_ids)?;
+
+        if (custom_collection_token_ids.len() as u32) < config.custom_bundle_content_count
+            && !config.custom_bundle_completed
+        {
+            config.custom_bundle_completed = true;
+            CONFIG.save(deps.storage, &config)?;
+        }
     }
 
     let current_bundle_mint_count =
@@ -939,14 +981,18 @@ fn execute_airdrop_token_distribution(
     if check_airdropper_mint_res.can_mint {
         for token in check_airdropper_mint_res.remaining_token_ids {
             current_token_supply -= 1;
-            res = res.add_message(process_and_get_mint_msg(
-                deps.branch(),
-                minter_addr.clone(),
-                current_token_supply,
-                token.collection_id,
-                Some(token.token_id),
-                None,
-            )?);
+            res = res.add_message(
+                (process_and_get_mint_msg(
+                    deps.branch(),
+                    minter_addr.clone(),
+                    current_token_supply,
+                    token.collection_id,
+                    Some(token.token_id),
+                    None,
+                    vec![],
+                )?)
+                .0,
+            );
 
             let update_msg = AD_MarkTokenIdClaimed(AD_AddressTokenMsg {
                 address: minter_addr.to_string(),
@@ -988,11 +1034,26 @@ fn execute_clean_claimed_tokens_from_shuffle(
             },
         )?;
 
-        for msg in assigned_token_ids {
-            new_current_token_supply -= 1;
+        let mut custom_collection_token_ids: Vec<(u64, u32)> = vec![];
 
-            let mut collection_token_ids: Vec<u32> =
-                CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, msg.collection_id)?;
+        if config.custom_bundle_enabled && !config.custom_bundle_completed {
+            custom_collection_token_ids = CUSTOM_BUNDLE_TOKENS.load(deps.storage)?;
+        }
+
+        let mut map: BTreeMap<u64, Vec<u32>> = BTreeMap::new();
+
+        for msg in assigned_token_ids {
+            if let std::collections::btree_map::Entry::Vacant(_e) = map.entry(msg.collection_id) {
+                map.insert(
+                    msg.collection_id,
+                    CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, msg.collection_id)?,
+                );
+            }
+
+            let mut collection_token_ids = map.get(&msg.collection_id).unwrap().clone();
+
+            let collection_length = collection_token_ids.len() - 1;
+            new_current_token_supply -= 1;
 
             // retrieve index of token id
             let token_index = collection_token_ids
@@ -1002,29 +1063,57 @@ fn execute_clean_claimed_tokens_from_shuffle(
 
             // if it exists remove token from vec
             if let Some(idx) = token_index {
-                let collection_length = collection_token_ids.len() - 1;
-
                 collection_token_ids.swap(idx as usize, collection_length);
                 collection_token_ids.resize(collection_length, 0);
 
-                CW721_SHUFFLED_TOKEN_IDS.save(
-                    deps.storage,
-                    msg.collection_id,
-                    &collection_token_ids,
-                )?;
-
-                // collection_length should be the new collection current token supply
-                COLLECTION_CURRENT_TOKEN_SUPPLY.save(
-                    deps.storage,
-                    msg.collection_id,
-                    &(collection_length as u32),
-                )?;
-
-                if collection_length == 0 {
-                    config.bundle_completed = true;
-                    CONFIG.save(deps.storage, &config)?;
+                if let Some(x) = map.get_mut(&msg.collection_id) {
+                    *x = collection_token_ids;
                 }
             }
+
+            if !custom_collection_token_ids.is_empty() {
+                let mut custom_token_index: Option<usize> = None;
+
+                for (_custom_token_index, custom_token_id) in
+                    custom_collection_token_ids.iter().enumerate()
+                {
+                    if custom_token_id.0 == msg.collection_id && custom_token_id.1 == msg.token_id {
+                        custom_token_index = Some(_custom_token_index);
+                        break;
+                    }
+                }
+
+                if let Some(idx) = custom_token_index {
+                    let custom_bundle_tokens_length: usize = custom_collection_token_ids.len() - 1;
+                    custom_collection_token_ids.swap(idx, custom_bundle_tokens_length);
+                    custom_collection_token_ids.resize(custom_bundle_tokens_length, (0, 0));
+                }
+            }
+        }
+
+        for id in map.keys() {
+            let new_shuffled_ids = map.get(id).unwrap().clone();
+
+            CW721_SHUFFLED_TOKEN_IDS.save(deps.storage, *id, &new_shuffled_ids)?;
+
+            // collection_length should be the new collection current token supply
+            COLLECTION_CURRENT_TOKEN_SUPPLY.save(
+                deps.storage,
+                *id,
+                &(new_shuffled_ids.len() as u32),
+            )?;
+
+            if new_shuffled_ids.is_empty() && !config.bundle_completed {
+                config.bundle_completed = true;
+                CONFIG.save(deps.storage, &config)?;
+            }
+        }
+
+        if (custom_collection_token_ids.len() as u32) < config.custom_bundle_content_count
+            && !config.custom_bundle_completed
+        {
+            config.custom_bundle_completed = true;
+            CONFIG.save(deps.storage, &config)?;
         }
 
         CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
@@ -1281,7 +1370,7 @@ fn execute_mint_custom_bundle(
         return Err(ContractError::MintCompleted {});
     }
     let mut res = Response::new();
-    let config = CONFIG.load(deps.storage)?;
+    let mut config = CONFIG.load(deps.storage)?;
 
     let mut wl_start_time: Option<Timestamp> = None;
 
@@ -1439,6 +1528,13 @@ fn execute_mint_custom_bundle(
 
     CUSTOM_BUNDLE_TOKENS.save(deps.storage, &custom_bundle_tokens)?;
 
+    if (custom_bundle_tokens.len() as u32) < config.custom_bundle_content_count
+        && !config.custom_bundle_completed
+    {
+        config.custom_bundle_completed = true;
+        CONFIG.save(deps.storage, &config)?;
+    }
+
     res = disburse_or_escrow_funds(deps, res, config.custom_bundle_mint_price)?;
 
     Ok(res.add_messages(msgs))
@@ -1484,7 +1580,8 @@ fn process_and_get_mint_msg(
     collection_id: u64,
     mut token_id: Option<u32>,
     mut token_index: Option<u32>,
-) -> Result<CosmosMsg, ContractError> {
+    mut custom_collection_token_ids: Vec<(u64, u32)>,
+) -> Result<(CosmosMsg, Vec<(u64, u32)>), ContractError> {
     if token_id.is_none() && token_index.is_none() {
         return Err(ContractError::UnableToMint {});
     }
@@ -1518,6 +1615,24 @@ fn process_and_get_mint_msg(
             )),
             extension: config.extension.clone(),
         });
+
+    if !custom_collection_token_ids.is_empty() {
+        let mut custom_token_index: Option<usize> = None;
+
+        for (_custom_token_index, custom_token_id) in custom_collection_token_ids.iter().enumerate()
+        {
+            if custom_token_id.0 == collection_id && custom_token_id.1 == token_id.unwrap() {
+                custom_token_index = Some(_custom_token_index);
+                break;
+            }
+        }
+
+        if let Some(idx) = custom_token_index {
+            let custom_bundle_tokens_length: usize = custom_collection_token_ids.len() - 1;
+            custom_collection_token_ids.swap(idx, custom_bundle_tokens_length);
+            custom_collection_token_ids.resize(custom_bundle_tokens_length, (0, 0));
+        }
+    }
 
     let token_address = CW721_ADDRS.load(deps.storage, coll_info.id)?;
 
@@ -1559,7 +1674,7 @@ fn process_and_get_mint_msg(
         CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
     }
 
-    Ok(msg)
+    Ok((msg, custom_collection_token_ids))
 }
 
 /// accepts a custom collection token ids to be trimmed and returned
