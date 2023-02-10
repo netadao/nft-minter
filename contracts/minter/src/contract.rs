@@ -312,9 +312,6 @@ pub fn execute(
     // mint
     match msg {
         ExecuteMsg::UpdateConfig(msg) => execute_update_config(deps, env, info, msg),
-        ExecuteMsg::InitSubmodule(reply_id, module_info) => {
-            execute_init_submodule(deps, env, info, reply_id, module_info)
-        }
         ExecuteMsg::Mint {
             is_promised_mint,
             minter_address,
@@ -485,27 +482,6 @@ fn execute_update_config(
     Ok(res
         .add_attribute("method", "update_config")
         .add_attribute("sender", info.sender))
-}
-
-fn execute_init_submodule(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    reply_id: u64,
-    module_info: ModuleInstantiateInfo,
-) -> Result<Response, ContractError> {
-    check_can_update(deps.as_ref(), &env, &info, false)?;
-
-    // needs to be valid reply_id
-    if reply_id != INSTANTIATE_AIRDROPPER_REPLY_ID && reply_id != INSTANTIATE_WHITELIST_REPLY_ID {
-        Err(ContractError::InvalidSubmoduleCodeId {})
-    } else {
-        let msg = module_info.into_wasm_msg(env.contract.address);
-
-        let msg: SubMsg<Empty> = SubMsg::reply_on_success(msg, reply_id);
-
-        Ok(Response::new().add_submessage(msg))
-    }
 }
 
 /// main public/whitelist minting method

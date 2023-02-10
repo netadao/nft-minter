@@ -149,9 +149,6 @@ pub struct ModuleInstantiateInfo {
 pub enum ExecuteMsg {
     /// Uses `BaseInitMsg` to update the the config
     UpdateConfig(BaseInitMsg),
-    /// (Re)Initializes submodules if a user desires.  This will replace the
-    /// existing submodule that its targeting.
-    InitSubmodule(u64, ModuleInstantiateInfo),
     /// General path for whitelist and public mints
     /// whitelist requires eligibility, public mint right now does not
     /// AirdropMint allow users to mint an NFT that was promised to them
