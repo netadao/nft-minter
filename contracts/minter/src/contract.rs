@@ -1364,10 +1364,6 @@ fn execute_mint_custom_bundle(
         return Err(ContractError::BeforeStartTime {});
     }
 
-    if env.block.time < config.start_time {
-        return Err(ContractError::BeforeStartTime {});
-    }
-
     if !config.custom_bundle_enabled {
         return Err(ContractError::BundleMintDisabled {});
     }
