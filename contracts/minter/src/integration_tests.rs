@@ -2907,7 +2907,7 @@ mod tests {
             let address_mint_tracker: Vec<(String, u32)> = app
                 .wrap()
                 .query_wasm_smart(
-                    config.whitelist_addr.unwrap(),
+                    config.whitelist_addr.clone().unwrap(),
                     &WhitelistQueryMsg::GetAddressMints {
                         start_after: None,
                         limit: None,
@@ -3029,19 +3029,72 @@ mod tests {
             app.execute_contract(
                 Addr::unchecked(INVALID),
                 cw_template_contract.addr(),
-                &ExecuteMsg::DisburseFunds {},
+                &ExecuteMsg::DisburseFunds {
+                    address: INVALID.to_owned(),
+                },
                 &[],
             )
             .unwrap_err();
+
+            let escrow_bals: Vec<AddrBal> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetEscrowBalances {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap();
+            println!("escrow_bals {:?}", escrow_bals);
 
             // disbursed
             app.execute_contract(
                 Addr::unchecked(ADMIN),
                 cw_template_contract.addr(),
-                &ExecuteMsg::DisburseFunds {},
+                &ExecuteMsg::DisburseFunds {
+                    address: MAINTAINER_ADDR.to_owned(),
+                },
                 &[],
             )
             .unwrap();
+
+            let escrow_bals: Vec<AddrBal> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetEscrowBalances {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap();
+            println!("escrow_bals {:?}", escrow_bals);
+
+            println!("config {:?}", config);
+
+            // disbursed
+            app.execute_contract(
+                Addr::unchecked(MAINTAINER_ADDR),
+                cw_template_contract.addr(),
+                &ExecuteMsg::DisburseFunds {
+                    address: ADMIN.to_owned(),
+                },
+                &[],
+            )
+            .unwrap();
+
+            let escrow_bals: Vec<AddrBal> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetEscrowBalances {
+                        start_after: None,
+                        limit: None,
+                    },
+                )
+                .unwrap();
+            println!("escrow_bals {:?}", escrow_bals);
 
             let maintainer_balance: Coin = app
                 .wrap()

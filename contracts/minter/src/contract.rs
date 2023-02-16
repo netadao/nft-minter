@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::{
-    AddrBal, AddressValMsg, Admin, BaseInitMsg, CollectionInfoMsg, ExecuteMsg, ExecutionTarget,
+    AddressValMsg, Admin, BaseInitMsg, CollectionInfoMsg, ExecuteMsg, ExecutionTarget,
     InstantiateMsg, MintType, ModuleInstantiateInfo, RoyaltyInfoMsg, SharedCollectionInfoMsg,
     TokenMsg,
 };
@@ -327,7 +327,7 @@ pub fn execute(
         ExecuteMsg::SubmoduleHook(target, msg) => {
             execute_submodule_hook(deps, env, info, target, msg)
         }
-        ExecuteMsg::DisburseFunds {} => execute_disburse_funds(deps, env, info),
+        ExecuteMsg::DisburseFunds { address } => execute_disburse_funds(deps, env, info, address),
         ExecuteMsg::ProcessCustomBundle {
             mint_price,
             content_count,
@@ -1244,45 +1244,45 @@ fn execute_disburse_funds(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
+    address: String,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-
-    // EITHER admin (minting contract) or maintainer can update/
-    if config.admin != info.sender && config.maintainer_addr != Some(info.sender) {
-        return Err(ContractError::Unauthorized {});
-    }
 
     let mut remaining_balance: Uint128 = (deps
         .querier
         .query_balance(&env.contract.address, config.mint_denom.clone())?)
     .amount;
 
-    let balances: Vec<AddrBal> = BANK_BALANCES
-        .range(deps.storage, None, None, Order::Ascending)
-        .map(|item| {
-            let (addr, balance) = item?;
-            Ok(AddrBal { addr, balance })
-        })
-        .collect::<StdResult<Vec<AddrBal>>>()
-        .unwrap();
+    let addr = deps.api.addr_validate(&address)?;
 
-    //let mut remaining_balance: Uint128 = contract_balance.amount;
     let mut msgs: Vec<BankMsg> = vec![];
 
-    for addr_bal in balances {
-        if addr_bal.balance > Uint128::zero() && remaining_balance >= addr_bal.balance {
+    // EITHER admin (minting contract) or maintainer can update/
+    if ((config.admin == info.sender || config.maintainer_addr == Some(info.sender.clone()))
+        && info.sender.clone() != addr)
+        || info.sender.clone() == addr
+    {
+        let addr_bal =
+            (BANK_BALANCES.may_load(deps.storage, addr.clone())?).unwrap_or(Uint128::zero());
+
+        if addr_bal > Uint128::zero() && remaining_balance >= addr_bal {
             msgs.push(BankMsg::Send {
-                to_address: addr_bal.addr.to_string(),
+                to_address: address,
                 amount: vec![Coin {
-                    amount: addr_bal.balance,
+                    amount: addr_bal,
                     denom: config.mint_denom.clone(),
                 }],
             });
 
-            remaining_balance -= addr_bal.balance;
-            BANK_BALANCES.save(deps.storage, addr_bal.addr, &Uint128::zero())?;
+            remaining_balance -= addr_bal;
+            BANK_BALANCES.save(deps.storage, addr, &Uint128::zero())?;
+        } else {
+            return Err(ContractError::NoBalanceAvailable);
         }
+    } else {
+        return Err(ContractError::Unauthorized {});
     }
+
     Ok(Response::default()
         .add_attribute("method", "disburse_funds")
         .add_messages(msgs))

@@ -146,6 +146,9 @@ pub enum ContractError {
     #[error("invalid character ({c}) in native denom")]
     InvalidCharacter { c: char },
 
+    #[error("no balance available")]
+    NoBalanceAvailable,
+
     #[error("Custom Error val: {val:?}")]
     CustomError { val: String },
     // Add any other custom errors you like here.

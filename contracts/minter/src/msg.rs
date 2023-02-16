@@ -179,7 +179,9 @@ pub enum ExecuteMsg {
     /// Allows this contract to pass execution messages to its submodules
     SubmoduleHook(ExecutionTarget, CosmosMsg<Empty>),
     /// Allows an admin/maintainer to disburse funds in escrow
-    DisburseFunds {},
+    DisburseFunds {
+        address: String,
+    },
     ProcessCustomBundle {
         content_count: u32,
         mint_price: Uint128,
