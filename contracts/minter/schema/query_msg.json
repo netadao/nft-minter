@@ -220,10 +220,10 @@
       "description": "Gets all the cw721 addresses attached to this contract",
       "type": "object",
       "required": [
-        "get_c_w721_addrs"
+        "get_cw721_addrs"
       ],
       "properties": {
-        "get_c_w721_addrs": {
+        "get_cw721_addrs": {
           "type": "object",
           "additionalProperties": false
         }

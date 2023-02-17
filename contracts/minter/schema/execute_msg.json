@@ -138,6 +138,14 @@
       "properties": {
         "disburse_funds": {
           "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
           "additionalProperties": false
         }
       },
