@@ -230,7 +230,7 @@ pub enum QueryMsg {
     /// Gets count of remaining tokens available in `CURRENT_TOKEN_SUPPLY`
     GetRemainingTokens { address: Option<String> },
     /// Gets all the cw721 addresses attached to this contract
-    GetCW721Addrs {},
+    GetCw721Addrs {},
 }
 
 #[cw_serde]

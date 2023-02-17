@@ -33,7 +33,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &query_get_collection_current_supply(deps, env, start_after, limit)?,
         ),
         QueryMsg::GetRemainingTokens { address } => query_get_remaining_tokens(deps, env, address),
-        QueryMsg::GetCW721Addrs {} => query_get_cw721_addrs(deps, env),
+        QueryMsg::GetCw721Addrs {} => query_get_cw721_addrs(deps, env),
     }
 }
 

@@ -56,6 +56,6 @@ fn main() {
     export_schema_with_title(
         &schema_for!(Vec<AddressValMsg>),
         &out_dir,
-        "GetCW721AddrsResponse",
+        "GetCw721AddrsResponse",
     );
 }

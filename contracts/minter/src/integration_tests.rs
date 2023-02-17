@@ -518,7 +518,7 @@ mod tests {
 
             let cw721_addrs: Vec<AddressValMsg> = app
                 .wrap()
-                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCW721Addrs {})
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCw721Addrs {})
                 .unwrap();
 
             println!("cw721_addrs {:?}", cw721_addrs);
@@ -587,7 +587,7 @@ mod tests {
 
             let cw721_addrs: Vec<AddressValMsg> = app
                 .wrap()
-                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCW721Addrs {})
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCw721Addrs {})
                 .unwrap();
 
             println!("cw721_addrs {:?}", cw721_addrs);
@@ -4196,7 +4196,7 @@ mod tests {
 
             let cw721_addrs: Vec<AddressValMsg> = app
                 .wrap()
-                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCW721Addrs {})
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCw721Addrs {})
                 .unwrap();
             println!("### cw721_addrs {:?}", cw721_addrs);
 
@@ -4370,7 +4370,7 @@ mod tests {
 
             let cw721_addrs: Vec<AddressValMsg> = app
                 .wrap()
-                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCW721Addrs {})
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCw721Addrs {})
                 .unwrap();
             println!("### cw721_addrs {:?}", cw721_addrs);
 
@@ -4823,7 +4823,7 @@ mod tests {
 
             let cw721_addrs: Vec<AddressValMsg> = app
                 .wrap()
-                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCW721Addrs {})
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCw721Addrs {})
                 .unwrap();
             println!("### cw721_addrs {:?}", cw721_addrs);
 
@@ -4889,7 +4889,7 @@ mod tests {
 
             let cw721_addrs: Vec<AddressValMsg> = app
                 .wrap()
-                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCW721Addrs {})
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCw721Addrs {})
                 .unwrap();
             println!("### cw721_addrs {:?}", cw721_addrs);
 
@@ -5338,7 +5338,7 @@ mod tests {
 
             let cw721_addrs: Vec<AddressValMsg> = app
                 .wrap()
-                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCW721Addrs {})
+                .query_wasm_smart(&cw_template_contract.addr(), &QueryMsg::GetCw721Addrs {})
                 .unwrap();
             println!("### cw721_addrs {:?}", cw721_addrs);
 
