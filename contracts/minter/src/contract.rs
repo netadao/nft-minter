@@ -613,7 +613,7 @@ fn _execute_mint(
     let _res = process_and_get_mint_msg(
         deps.branch(),
         minter_addr.clone(),
-        current_token_supply - 1,
+        current_token_supply,
         collection_id,
         None,
         Some(token_index),
@@ -790,8 +790,6 @@ fn _execute_mint_bundle(
     }
 
     for collection in collections {
-        current_token_supply -= 1;
-
         let collection_current_token_supply =
             COLLECTION_CURRENT_TOKEN_SUPPLY.load(deps.storage, collection.value as u64)?;
 
@@ -814,6 +812,7 @@ fn _execute_mint_bundle(
 
         res = res.add_message(_res.0);
         custom_collection_token_ids = _res.1;
+        current_token_supply -= 1;
     }
 
     if config.custom_bundle_enabled && !config.custom_bundle_completed {
@@ -934,7 +933,6 @@ fn execute_airdrop_token_distribution(
         (maybe_addr(deps.api, minter_address)?).unwrap_or_else(|| info.sender.clone());
 
     let config = CONFIG.load(deps.storage)?;
-    let mut current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
     let airdropper_addr = AIRDROPPER_ADDR.load(deps.storage)?;
 
     let mut res: Response = Response::new();
@@ -956,7 +954,8 @@ fn execute_airdrop_token_distribution(
 
     if check_airdropper_mint_res.can_mint {
         for token in check_airdropper_mint_res.remaining_token_ids {
-            current_token_supply -= 1;
+            let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
+
             res = res.add_message(
                 (process_and_get_mint_msg(
                     deps.branch(),
@@ -1471,8 +1470,6 @@ fn execute_mint_custom_bundle(
         // removes token from custom bundle list and saved at the end
         custom_bundle_tokens.swap(index as usize, custom_bundle_tokens_length);
 
-        current_token_supply -= 1;
-
         // this will remove these tokens from the main lists
         let res = process_and_get_mint_msg_custom_collection_token_ids_vec(
             deps.branch(),
@@ -1483,6 +1480,8 @@ fn execute_mint_custom_bundle(
             None,
             collection_token_ids,
         )?;
+
+        current_token_supply -= 1;
 
         msgs.push(res.0);
 
@@ -1544,11 +1543,11 @@ struct ValidateCollectionInfoResponse {
     pub total_token_supply: u32,
 }
 
-/// also stores
+/// also stores a number of fields
 fn process_and_get_mint_msg(
     deps: DepsMut,
     minter_addr: Addr,
-    new_current_token_supply: u32,
+    mut new_current_token_supply: u32,
     collection_id: u64,
     mut token_id: Option<u32>,
     mut token_index: Option<u32>,
@@ -1627,6 +1626,7 @@ fn process_and_get_mint_msg(
     // this may have been performed by the clean_shuffle function so the tokens will not
     // be in the collection arrays
     if let Some(idx) = token_index {
+        new_current_token_supply -= 1;
         collection_token_ids.swap(idx as usize, collection_length);
         collection_token_ids.resize(collection_length, 0);
 
@@ -1653,7 +1653,7 @@ fn process_and_get_mint_msg(
 fn process_and_get_mint_msg_custom_collection_token_ids_vec(
     deps: DepsMut,
     minter_addr: Addr,
-    new_current_token_supply: u32,
+    mut new_current_token_supply: u32,
     collection_id: u64,
     mut token_id: Option<u32>,
     mut token_index: Option<u32>,
@@ -1722,6 +1722,8 @@ fn process_and_get_mint_msg_custom_collection_token_ids_vec(
             config.bundle_completed = true;
             CONFIG.save(deps.storage, &config)?;
         }
+
+        new_current_token_supply -= 1;
 
         CURRENT_TOKEN_SUPPLY.save(deps.storage, &new_current_token_supply)?;
     }

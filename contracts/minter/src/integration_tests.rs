@@ -834,6 +834,16 @@ mod tests {
             // public mint starts
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
 
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 5);
+
             // USER25 mints in public with less than amount
             app.execute_contract(
                 Addr::unchecked(USER25),
@@ -845,6 +855,16 @@ mod tests {
                 &[coin(2_000_000, NATIVE_DENOM)],
             )
             .unwrap();
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 4);
 
             app.update_block(|mut block| block.height += 1);
 
@@ -2440,6 +2460,16 @@ mod tests {
                 block.time = Timestamp::from_seconds(WHITELIST_START_TIME)
             });
 
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 5);
+
             let _res = app
                 .execute_contract(
                     Addr::unchecked(USER),
@@ -2451,6 +2481,16 @@ mod tests {
                     &[coin(1_000_001, NATIVE_DENOM)],
                 )
                 .unwrap();
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 4);
 
             let address_mint_tracker: Vec<(String, u32)> = app
                 .wrap()
@@ -4901,7 +4941,7 @@ mod tests {
                 )
                 .unwrap();
 
-            println!("### token_data {:?}", token_data);
+            assert_eq!(token_data.remaining_token_supply, 6);
 
             let get_collection_current_supply: Vec<(u64, u32)> = app
                 .wrap()
@@ -4940,6 +4980,16 @@ mod tests {
                     &[coin(5_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 4);
 
             let _res = app
                 .execute_contract(
@@ -5422,6 +5472,16 @@ mod tests {
 
             app.update_block(|mut block| block.height += 1);
 
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 6006);
+
             let msg = ExecuteMsg::ProcessCustomBundle {
                 content_count: 5u32,
                 mint_price: Uint128::from(2_000_000u128),
@@ -5509,6 +5569,16 @@ mod tests {
                     &[coin(2_000_000u128, NATIVE_DENOM)],
                 )
                 .unwrap();
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 6001); // 5 were minted in the previous loop
 
             let disable_custom_bundle_msg = ExecuteMsg::ProcessCustomBundle {
                 content_count: 5u32,
@@ -5770,6 +5840,16 @@ mod tests {
             app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
             app.update_block(|mut block| block.height += 1);
 
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 6006);
+
             let msg = ExecuteMsg::MintBundle {};
 
             for _ in 0u32..=5 {
@@ -5785,6 +5865,16 @@ mod tests {
                 app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
                 app.update_block(|mut block| block.height += 1);
             }
+
+            let token_data: TokenDataResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetRemainingTokens { address: None },
+                )
+                .unwrap();
+
+            assert_eq!(token_data.remaining_token_supply, 5988); // 18 were minted in the previous loop
 
             let config: ConfigResponse = app
                 .wrap()
@@ -5819,6 +5909,8 @@ mod tests {
                 minter_address: None,
             };
 
+            let mut remaining_tokens_count = token_data.remaining_token_supply; // 5998
+
             for _ in 0u32..=5 {
                 // 5987
                 let _res = app
@@ -5829,6 +5921,18 @@ mod tests {
                         &[coin(2_000_000, NATIVE_DENOM)],
                     )
                     .unwrap();
+
+                remaining_tokens_count -= 1;
+
+                let token_data: TokenDataResponse = app
+                    .wrap()
+                    .query_wasm_smart(
+                        &cw_template_contract.addr(),
+                        &QueryMsg::GetRemainingTokens { address: None },
+                    )
+                    .unwrap();
+
+                assert_eq!(token_data.remaining_token_supply, remaining_tokens_count);
 
                 app.update_block(|mut block| block.time = Timestamp::from_seconds(MINT_START_TIME));
                 app.update_block(|mut block| block.height += 1);
