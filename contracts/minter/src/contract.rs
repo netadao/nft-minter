@@ -1257,9 +1257,9 @@ fn execute_disburse_funds(
     let mut msgs: Vec<BankMsg> = vec![];
 
     // EITHER admin (minting contract) or maintainer can update/
-    if ((config.admin == info.sender || config.maintainer_addr == Some(info.sender.clone()))
-        && info.sender.clone() != addr)
-        || info.sender.clone() == addr
+    if config.admin == info.sender
+        || config.maintainer_addr == Some(info.sender.clone())
+        || info.sender == addr
     {
         let addr_bal =
             (BANK_BALANCES.may_load(deps.storage, addr.clone())?).unwrap_or(Uint128::zero());
@@ -1269,7 +1269,7 @@ fn execute_disburse_funds(
                 to_address: address,
                 amount: vec![Coin {
                     amount: addr_bal,
-                    denom: config.mint_denom.clone(),
+                    denom: config.mint_denom,
                 }],
             });
 

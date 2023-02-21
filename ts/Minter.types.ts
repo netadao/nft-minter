@@ -63,7 +63,9 @@ export type ExecuteMsg = {
 } | {
   submodule_hook: [ExecutionTarget, CosmosMsgForEmpty];
 } | {
-  disburse_funds: {};
+  disburse_funds: {
+    address: string;
+  };
 } | {
   process_custom_bundle: {
     content_count: number;
@@ -246,7 +248,6 @@ export interface AddressValMsg {
   value: number;
 }
 export type GetBundleMintTrackerResponse = [Addr, number][];
-export type GetCW721AddrsResponse = AddressValMsg[];
 export type GetCollectionCurrentTokenSupplyResponse = [number, number][];
 export interface GetConfigResponse {
   admin: Addr;
@@ -271,6 +272,7 @@ export interface GetConfigResponse {
   total_token_supply: number;
   whitelist_addr?: Addr | null;
 }
+export type GetCw721AddrsResponse = AddressValMsg[];
 export type GetCw721CollectionInfoResponse = [number, CollectionInfo][];
 export interface CollectionInfo {
   base_token_uri: string;
@@ -371,5 +373,5 @@ export type QueryMsg = {
     address?: string | null;
   };
 } | {
-  get_c_w721_addrs: {};
+  get_cw721_addrs: {};
 };

@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import { CheckAddressMintsResponse, Addr, Uint128, Timestamp, Uint64, Config, SharedCollectionInfo, RoyaltyInfo, ExecuteMsg, ExecutionTarget, CosmosMsgForEmpty, BankMsg, StakingMsg, DistributionMsg, Binary, IbcMsg, WasmMsg, GovMsg, VoteOption, BaseInitMsg, Coin, Empty, IbcTimeout, IbcTimeoutBlock, TokenMsg, GetAddressMintsResponse, AddressValMsg, GetBundleMintTrackerResponse, GetCW721AddrsResponse, GetCollectionCurrentTokenSupplyResponse, GetConfigResponse, GetCw721CollectionInfoResponse, CollectionInfo, GetEscrowBalancesResponse, AddrBal, GetRemainingTokensResponse, Admin, InstantiateMsg, ModuleInstantiateInfo, CollectionInfoMsg, SharedCollectionInfoMsg, RoyaltyInfoMsg, QueryMsg } from "./Minter.types";
+import { CheckAddressMintsResponse, Addr, Uint128, Timestamp, Uint64, Config, SharedCollectionInfo, RoyaltyInfo, ExecuteMsg, ExecutionTarget, CosmosMsgForEmpty, BankMsg, StakingMsg, DistributionMsg, Binary, IbcMsg, WasmMsg, GovMsg, VoteOption, BaseInitMsg, Coin, Empty, IbcTimeout, IbcTimeoutBlock, TokenMsg, GetAddressMintsResponse, AddressValMsg, GetBundleMintTrackerResponse, GetCollectionCurrentTokenSupplyResponse, GetConfigResponse, GetCw721AddrsResponse, GetCw721CollectionInfoResponse, CollectionInfo, GetEscrowBalancesResponse, AddrBal, GetRemainingTokensResponse, Admin, InstantiateMsg, ModuleInstantiateInfo, CollectionInfoMsg, SharedCollectionInfoMsg, RoyaltyInfoMsg, QueryMsg } from "./Minter.types";
 export interface MinterReadOnlyInterface {
   contractAddress: string;
   getConfig: () => Promise<GetConfigResponse>;
@@ -55,7 +55,7 @@ export interface MinterReadOnlyInterface {
   }: {
     address?: string;
   }) => Promise<GetRemainingTokensResponse>;
-  getCW721Addrs: () => Promise<GetCW721AddrsResponse>;
+  getCw721Addrs: () => Promise<GetCw721AddrsResponse>;
 }
 export class MinterQueryClient implements MinterReadOnlyInterface {
   client: CosmWasmClient;
@@ -72,7 +72,7 @@ export class MinterQueryClient implements MinterReadOnlyInterface {
     this.getBundleMintTracker = this.getBundleMintTracker.bind(this);
     this.getCollectionCurrentTokenSupply = this.getCollectionCurrentTokenSupply.bind(this);
     this.getRemainingTokens = this.getRemainingTokens.bind(this);
-    this.getCW721Addrs = this.getCW721Addrs.bind(this);
+    this.getCw721Addrs = this.getCw721Addrs.bind(this);
   }
 
   getConfig = async (): Promise<GetConfigResponse> => {
@@ -172,9 +172,9 @@ export class MinterQueryClient implements MinterReadOnlyInterface {
       }
     });
   };
-  getCW721Addrs = async (): Promise<GetCW721AddrsResponse> => {
+  getCw721Addrs = async (): Promise<GetCw721AddrsResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      get_c_w721_addrs: {}
+      get_cw721_addrs: {}
     });
   };
 }
@@ -224,7 +224,11 @@ export interface MinterInterface extends MinterReadOnlyInterface {
   cleanClaimedTokensFromShuffle: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   shuffleTokenOrder: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   submoduleHook: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-  disburseFunds: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+  disburseFunds: ({
+    address
+  }: {
+    address: string;
+  }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   processCustomBundle: ({
     contentCount,
     mintPrice,
@@ -349,9 +353,15 @@ export class MinterClient extends MinterQueryClient implements MinterInterface {
       submodule_hook: {}
     }, fee, memo, funds);
   };
-  disburseFunds = async (fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
+  disburseFunds = async ({
+    address
+  }: {
+    address: string;
+  }, fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      disburse_funds: {}
+      disburse_funds: {
+        address
+      }
     }, fee, memo, funds);
   };
   processCustomBundle = async ({
