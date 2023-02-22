@@ -1562,9 +1562,14 @@ fn process_and_get_mint_msg(
     let mut collection_token_ids: Vec<u32> =
         CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, collection_id)?;
 
-    let collection_length = collection_token_ids.len() - 1;
+    let mut collection_length = collection_token_ids.len();
 
-    if token_id.is_none() || token_index.unwrap_or(0) > (collection_length as u32) {
+    if token_id.is_none() && collection_length > 0 {
+        collection_length -= 1;
+        if token_index.unwrap_or(0) > (collection_length as u32) {
+            token_index = Some(collection_length as u32);
+        }
+
         token_index = Some(token_index.unwrap_or(0));
         if token_index.unwrap_or(0) > (collection_length as u32) {
             token_index = Some(collection_length as u32);
@@ -1665,9 +1670,14 @@ fn process_and_get_mint_msg_custom_collection_token_ids_vec(
 
     let mut config = CONFIG.load(deps.storage)?;
 
-    let collection_length = collection_token_ids.len() - 1;
+    let mut collection_length = collection_token_ids.len();
 
-    if token_id.is_none() || token_index.unwrap_or(0) > (collection_length as u32) {
+    if token_id.is_none() && collection_length > 0 {
+        collection_length -= 1; // use len - 1 as index max
+        if token_index.unwrap_or(0) > (collection_length as u32) {
+            token_index = Some(collection_length as u32);
+        }
+
         token_index = Some(token_index.unwrap_or(0));
         if token_index.unwrap_or(0) > (collection_length as u32) {
             token_index = Some(collection_length as u32);
@@ -1709,6 +1719,7 @@ fn process_and_get_mint_msg_custom_collection_token_ids_vec(
     // remove token from vec by swapping the item at token index to the end of the vec
     // then resize the vec to the new length and save
     if let Some(idx) = token_index {
+        collection_length -= 1; // trim collection
         collection_token_ids.swap(idx as usize, collection_length);
         collection_token_ids.resize(collection_length, 0);
 
