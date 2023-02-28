@@ -3,8 +3,8 @@ name = "airdropper"
 version = "1.0.0"
 authors = ["whiskey <103599070+onewhiskeypls@users.noreply.github.com>"]
 edition = "2021"
-repository = ""
-description = "NFT airdropper for NFT minting"
+repository = "https://github.com/netadao/nft-minter"
+description = "NFT airdropper contract for NFT minter"
 license = "BSD-3"
 
 [lib]
