@@ -94,13 +94,13 @@ pub enum ContractError {
     #[error("Max bundles minted: {0}")]
     BundleMaxMintReached(u32),
 
-    #[error("Premint window not yet open")]
+    #[error("Airdrop window not yet open")]
     BeforePremintStarttime {},
 
     #[error("Whitelist Closed")]
     WhitelistClosed {},
 
-    #[error("Premint Closed")]
+    #[error("Airdrop Closed")]
     AirdropClosed {},
 
     #[error("Bundle mint has completed. No more bundles available.")]

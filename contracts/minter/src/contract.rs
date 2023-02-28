@@ -96,7 +96,7 @@ struct MintParametersResponse {
 }
 
 /// Default fee collection address if no DAO address is provided
-const DEFAULT_FEE_COLLECTION_ADDRESS: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
+const DEFAULT_FEE_COLLECTION_ADDRESS: &str = "juno1excmamnysxujtd2hzm343nzdwch79y5cvk5h7w6uxlrt230xqwtqkmancl";
 
 /// default fee amount assumes 6 decimal
 const DEFAULT_FEE_AMOUNT: u128 = 1_000_000u128;
