@@ -34,7 +34,6 @@ pub struct CollectionInfo {
     pub name: String,
     pub symbol: String,
     pub base_token_uri: String,
-    pub secondary_metadata_uri: Option<String>,
 }
 
 #[cw_serde]

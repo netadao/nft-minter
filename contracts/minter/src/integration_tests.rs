@@ -190,9 +190,6 @@ mod tests {
             symbol: "TESTNFT".to_string(),
             base_token_uri: "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
             token_supply: token_supply.unwrap_or(5),
-            secondary_metadata_uri: Some(
-                "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
-            ),
         }];
 
         for id in 2u32..=multiple_collection_count.unwrap_or(0) {
@@ -207,9 +204,6 @@ mod tests {
                 symbol: format!("TESTNFT{:?}", id),
                 base_token_uri: "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
                 token_supply: _token_supply,
-                secondary_metadata_uri: Some(
-                    "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
-                ),
             });
         }
 
@@ -388,9 +382,6 @@ mod tests {
             symbol: "TESTNFT".to_string(),
             base_token_uri: "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
             token_supply: 5,
-            secondary_metadata_uri: Some(
-                "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
-            ),
         }];
 
         if multiple_collections {
@@ -399,9 +390,6 @@ mod tests {
                 symbol: "TESTNFT2".to_string(),
                 base_token_uri: "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
                 token_supply: 1,
-                secondary_metadata_uri: Some(
-                    "ipfs://QmSw2yJjwYbdVnn27KQFg5ex2Q6G24RxorgX7v72NpFs4v".to_string(),
-                ),
             });
         }
 

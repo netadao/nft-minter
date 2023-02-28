@@ -278,7 +278,6 @@ export interface CollectionInfo {
   base_token_uri: string;
   id: number;
   name: string;
-  secondary_metadata_uri?: string | null;
   symbol: string;
   token_supply: number;
 }
@@ -324,7 +323,6 @@ export interface ModuleInstantiateInfo {
 export interface CollectionInfoMsg {
   base_token_uri: string;
   name: string;
-  secondary_metadata_uri?: string | null;
   symbol: string;
   token_supply: number;
 }

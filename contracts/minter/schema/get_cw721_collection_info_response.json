@@ -39,12 +39,6 @@
         "name": {
           "type": "string"
         },
-        "secondary_metadata_uri": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "symbol": {
           "type": "string"
         },

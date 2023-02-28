@@ -228,13 +228,6 @@
           "description": "name of nft project",
           "type": "string"
         },
-        "secondary_metadata_uri": {
-          "description": "optional secondary metadata resource that is intended to be dynamic and extensible to the creator's desires",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "symbol": {
           "description": "symbol for nft project, this seems really optional for cw721 standard",
           "type": "string"

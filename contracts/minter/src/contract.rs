@@ -1754,14 +1754,6 @@ fn validate_collection_info(
         id += 1;
         validate_uri(msg.base_token_uri.clone())?;
 
-        let secondary_metadata_uri: Option<String> = match msg.secondary_metadata_uri {
-            Some(uri) => {
-                validate_uri(uri.clone())?;
-                Some(uri)
-            }
-            None => None,
-        };
-
         total_token_supply += msg.token_supply;
 
         collection_infos.push(CollectionInfo {
@@ -1770,7 +1762,6 @@ fn validate_collection_info(
             name: msg.name,
             symbol: msg.symbol,
             base_token_uri: msg.base_token_uri,
-            secondary_metadata_uri,
         })
     }
 

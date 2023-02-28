@@ -61,9 +61,6 @@ pub struct CollectionInfoMsg {
     pub symbol: String,
     /// uri for the metadata. intended to be a static metadata for the nft
     pub base_token_uri: String,
-    /// optional secondary metadata resource that is intended to be dynamic
-    /// and extensible to the creator's desires
-    pub secondary_metadata_uri: Option<String>,
 }
 
 /// Shared Collection Info that stores revenue/royalty split as well the optional secondary metadata
