@@ -7339,6 +7339,19 @@ mod tests {
                 )
                 .unwrap();
 
+            let custom_bundle_mints: Vec<(Addr, u32)> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetCustomBundleMintTracker {
+                        start_after: None,
+                        limit: Some(50000),
+                    },
+                )
+                .unwrap();
+
+            assert_eq!(custom_bundle_mints, vec![(Addr::unchecked(USER25), 1)]);
+
             let token_data: TokenDataResponse = app
                 .wrap()
                 .query_wasm_smart(
@@ -7803,6 +7816,19 @@ mod tests {
                 )
                 .unwrap();
 
+            let bundle_mints: Vec<(Addr, u32)> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetBundleMintTracker {
+                        start_after: None,
+                        limit: Some(50000),
+                    },
+                )
+                .unwrap();
+
+            assert_eq!(bundle_mints, vec![(Addr::unchecked(USER25), 1)]);
+
             let _res = app
                 .execute_contract(
                     Addr::unchecked(USER25),
@@ -7852,6 +7878,19 @@ mod tests {
                     &[coin(5_000_000, NATIVE_DENOM)],
                 )
                 .unwrap();
+
+            let bundle_mints: Vec<(Addr, u32)> = app
+                .wrap()
+                .query_wasm_smart(
+                    &cw_template_contract.addr(),
+                    &QueryMsg::GetBundleMintTracker {
+                        start_after: None,
+                        limit: Some(50000),
+                    },
+                )
+                .unwrap();
+
+            assert_eq!(bundle_mints, vec![(Addr::unchecked(USER25), 2)]);
 
             let token_data: TokenDataResponse = app
                 .wrap()

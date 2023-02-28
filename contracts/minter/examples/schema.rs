@@ -44,6 +44,11 @@ fn main() {
         "GetBundleMintTrackerResponse",
     );
     export_schema_with_title(
+        &schema_for!(Vec<(Addr, u32)>),
+        &out_dir,
+        "GetCustomBundleMintTrackerResponse",
+    );
+    export_schema_with_title(
         &schema_for!(Vec<(u64, u32)>),
         &out_dir,
         "GetCollectionCurrentTokenSupplyResponse",

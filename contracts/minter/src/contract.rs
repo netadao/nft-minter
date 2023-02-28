@@ -1506,6 +1506,12 @@ fn execute_mint_custom_bundle(
         CONFIG.save(deps.storage, &config)?;
     }
 
+    CUSTOM_BUNDLE_MINT_TRACKER.save(
+        deps.storage,
+        info.sender,
+        &(current_custom_bundle_mint_count + 1),
+    )?;
+
     res = disburse_or_escrow_funds(deps, res, config.custom_bundle_mint_price)?;
 
     Ok(res.add_messages(msgs))

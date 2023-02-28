@@ -219,6 +219,11 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    GetCustomBundleMintTracker {
+        /// token_id
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
     GetCollectionCurrentTokenSupply {
         /// token_id
         start_after: Option<u64>,

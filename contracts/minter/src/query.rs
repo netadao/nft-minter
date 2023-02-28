@@ -6,8 +6,8 @@ use cw_utils::maybe_addr;
 use crate::msg::{AddrBal, AddressValMsg, ConfigResponse, QueryMsg, TokenDataResponse};
 use crate::state::{
     CollectionInfo, ADDRESS_MINT_TRACKER, AIRDROPPER_ADDR, BANK_BALANCES, BUNDLE_MINT_TRACKER,
-    COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG, CURRENT_TOKEN_SUPPLY, CUSTOM_BUNDLE_TOKENS,
-    CW721_ADDRS, CW721_COLLECTION_INFO, WHITELIST_ADDR,
+    COLLECTION_CURRENT_TOKEN_SUPPLY, CONFIG, CURRENT_TOKEN_SUPPLY, CUSTOM_BUNDLE_MINT_TRACKER,
+    CUSTOM_BUNDLE_TOKENS, CW721_ADDRS, CW721_COLLECTION_INFO, WHITELIST_ADDR,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -28,6 +28,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         ),
         QueryMsg::GetBundleMintTracker { start_after, limit } => to_binary(
             &query_get_bundle_mint_tracker(deps, env, start_after, limit)?,
+        ),
+        QueryMsg::GetCustomBundleMintTracker { start_after, limit } => to_binary(
+            &query_get_custom_bundle_mint_tracker(deps, env, start_after, limit)?,
         ),
         QueryMsg::GetCollectionCurrentTokenSupply { start_after, limit } => to_binary(
             &query_get_collection_current_supply(deps, env, start_after, limit)?,
@@ -250,6 +253,29 @@ fn query_get_bundle_mint_tracker(
     let limit = limit.unwrap_or(100).min(100) as usize;
 
     let tokens = BUNDLE_MINT_TRACKER
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (token_id, position) = item?;
+            Ok((token_id, position))
+        })
+        .collect::<StdResult<Vec<_>>>();
+
+    Ok(tokens.unwrap())
+}
+
+fn query_get_custom_bundle_mint_tracker(
+    deps: Deps,
+    _env: Env,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<Vec<(Addr, u32)>> {
+    let start_after = maybe_addr(deps.api, start_after)?;
+    let start = start_after.map(Bound::<Addr>::exclusive);
+
+    let limit = limit.unwrap_or(100).min(100) as usize;
+
+    let tokens = CUSTOM_BUNDLE_MINT_TRACKER
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
