@@ -165,6 +165,36 @@
     {
       "type": "object",
       "required": [
+        "get_custom_bundle_mint_tracker"
+      ],
+      "properties": {
+        "get_custom_bundle_mint_tracker": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "token_id",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_collection_current_token_supply"
       ],
       "properties": {

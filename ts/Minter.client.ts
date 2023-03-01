@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import { CheckAddressMintsResponse, Addr, Uint128, Timestamp, Uint64, Config, SharedCollectionInfo, RoyaltyInfo, ExecuteMsg, ExecutionTarget, CosmosMsgForEmpty, BankMsg, StakingMsg, DistributionMsg, Binary, IbcMsg, WasmMsg, GovMsg, VoteOption, BaseInitMsg, Coin, Empty, IbcTimeout, IbcTimeoutBlock, TokenMsg, GetAddressMintsResponse, AddressValMsg, GetBundleMintTrackerResponse, GetCollectionCurrentTokenSupplyResponse, GetConfigResponse, GetCw721AddrsResponse, GetCw721CollectionInfoResponse, CollectionInfo, GetEscrowBalancesResponse, AddrBal, GetRemainingTokensResponse, Admin, InstantiateMsg, ModuleInstantiateInfo, CollectionInfoMsg, SharedCollectionInfoMsg, RoyaltyInfoMsg, QueryMsg } from "./Minter.types";
+import { CheckAddressMintsResponse, Addr, Uint128, Timestamp, Uint64, Config, SharedCollectionInfo, RoyaltyInfo, ExecuteMsg, ExecutionTarget, CosmosMsgForEmpty, BankMsg, StakingMsg, DistributionMsg, Binary, IbcMsg, WasmMsg, GovMsg, VoteOption, BaseInitMsg, Coin, Empty, IbcTimeout, IbcTimeoutBlock, TokenMsg, GetAddressMintsResponse, AddressValMsg, GetBundleMintTrackerResponse, GetCollectionCurrentTokenSupplyResponse, GetConfigResponse, GetCustomBundleMintTrackerResponse, GetCw721AddrsResponse, GetCw721CollectionInfoResponse, CollectionInfo, GetEscrowBalancesResponse, AddrBal, GetRemainingTokensResponse, Admin, InstantiateMsg, ModuleInstantiateInfo, CollectionInfoMsg, SharedCollectionInfoMsg, RoyaltyInfoMsg, QueryMsg } from "./Minter.types";
 export interface MinterReadOnlyInterface {
   contractAddress: string;
   getConfig: () => Promise<GetConfigResponse>;
@@ -43,6 +43,13 @@ export interface MinterReadOnlyInterface {
     limit?: number;
     startAfter?: string;
   }) => Promise<GetBundleMintTrackerResponse>;
+  getCustomBundleMintTracker: ({
+    limit,
+    startAfter
+  }: {
+    limit?: number;
+    startAfter?: string;
+  }) => Promise<GetCustomBundleMintTrackerResponse>;
   getCollectionCurrentTokenSupply: ({
     limit,
     startAfter
@@ -70,6 +77,7 @@ export class MinterQueryClient implements MinterReadOnlyInterface {
     this.getEscrowBalances = this.getEscrowBalances.bind(this);
     this.getCw721CollectionInfo = this.getCw721CollectionInfo.bind(this);
     this.getBundleMintTracker = this.getBundleMintTracker.bind(this);
+    this.getCustomBundleMintTracker = this.getCustomBundleMintTracker.bind(this);
     this.getCollectionCurrentTokenSupply = this.getCollectionCurrentTokenSupply.bind(this);
     this.getRemainingTokens = this.getRemainingTokens.bind(this);
     this.getCw721Addrs = this.getCw721Addrs.bind(this);
@@ -142,6 +150,20 @@ export class MinterQueryClient implements MinterReadOnlyInterface {
   }): Promise<GetBundleMintTrackerResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
       get_bundle_mint_tracker: {
+        limit,
+        start_after: startAfter
+      }
+    });
+  };
+  getCustomBundleMintTracker = async ({
+    limit,
+    startAfter
+  }: {
+    limit?: number;
+    startAfter?: string;
+  }): Promise<GetCustomBundleMintTrackerResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      get_custom_bundle_mint_tracker: {
         limit,
         start_after: startAfter
       }

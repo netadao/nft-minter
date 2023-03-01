@@ -272,6 +272,7 @@ export interface GetConfigResponse {
   total_token_supply: number;
   whitelist_addr?: Addr | null;
 }
+export type GetCustomBundleMintTrackerResponse = [Addr, number][];
 export type GetCw721AddrsResponse = AddressValMsg[];
 export type GetCw721CollectionInfoResponse = [number, CollectionInfo][];
 export interface CollectionInfo {
@@ -358,6 +359,11 @@ export type QueryMsg = {
   };
 } | {
   get_bundle_mint_tracker: {
+    limit?: number | null;
+    start_after?: string | null;
+  };
+} | {
+  get_custom_bundle_mint_tracker: {
     limit?: number | null;
     start_after?: string | null;
   };
