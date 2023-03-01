@@ -1007,11 +1007,11 @@ fn execute_clean_claimed_tokens_from_shuffle(
         let mut config = CONFIG.load(deps.storage)?;
         let mut new_current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
 
-        let assigned_token_ids: Vec<AD_TokenMsg> = deps.querier.query_wasm_smart(
-            addr,
+        let mut assigned_token_ids: Vec<AD_TokenMsg> = deps.querier.query_wasm_smart(
+            addr.clone(),
             &AirdropperQueryMsg::GetAssignedTokenIds {
                 start_after: None,
-                limit: None,
+                limit: Some(500),
             },
         )?;
 
@@ -1022,54 +1022,71 @@ fn execute_clean_claimed_tokens_from_shuffle(
         }
 
         let mut map: BTreeMap<u64, Vec<u32>> = BTreeMap::new();
+        let mut last_msg: Option<(u64, u32)> = None;
 
-        for msg in assigned_token_ids {
-            if let std::collections::btree_map::Entry::Vacant(_e) = map.entry(msg.collection_id) {
-                map.insert(
-                    msg.collection_id,
-                    CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, msg.collection_id)?,
-                );
-            }
+        while !assigned_token_ids.is_empty() {
+            for msg in assigned_token_ids {
+                last_msg = Some((msg.collection_id, msg.token_id));
 
-            let mut collection_token_ids = map.get(&msg.collection_id).unwrap().clone();
-
-            let collection_length = collection_token_ids.len() - 1;
-            new_current_token_supply -= 1;
-
-            // retrieve index of token id
-            let token_index = collection_token_ids
-                .iter()
-                .position(|&i| i == msg.token_id)
-                .map(|idx| idx as u32);
-
-            // if it exists remove token from vec
-            if let Some(idx) = token_index {
-                collection_token_ids.swap(idx as usize, collection_length);
-                collection_token_ids.resize(collection_length, 0);
-
-                if let Some(x) = map.get_mut(&msg.collection_id) {
-                    *x = collection_token_ids;
-                }
-            }
-
-            if !custom_collection_token_ids.is_empty() {
-                let mut custom_token_index: Option<usize> = None;
-
-                for (_custom_token_index, custom_token_id) in
-                    custom_collection_token_ids.iter().enumerate()
+                if let std::collections::btree_map::Entry::Vacant(_e) = map.entry(msg.collection_id)
                 {
-                    if custom_token_id.0 == msg.collection_id && custom_token_id.1 == msg.token_id {
-                        custom_token_index = Some(_custom_token_index);
-                        break;
+                    map.insert(
+                        msg.collection_id,
+                        CW721_SHUFFLED_TOKEN_IDS.load(deps.storage, msg.collection_id)?,
+                    );
+                }
+
+                let mut collection_token_ids = map.get(&msg.collection_id).unwrap().clone();
+
+                let collection_length = collection_token_ids.len() - 1;
+                new_current_token_supply -= 1;
+
+                // retrieve index of token id
+                let token_index = collection_token_ids
+                    .iter()
+                    .position(|&i| i == msg.token_id)
+                    .map(|idx| idx as u32);
+
+                // if it exists remove token from vec
+                if let Some(idx) = token_index {
+                    collection_token_ids.swap(idx as usize, collection_length);
+                    collection_token_ids.resize(collection_length, 0);
+
+                    if let Some(x) = map.get_mut(&msg.collection_id) {
+                        *x = collection_token_ids;
                     }
                 }
 
-                if let Some(idx) = custom_token_index {
-                    let custom_bundle_tokens_length: usize = custom_collection_token_ids.len() - 1;
-                    custom_collection_token_ids.swap(idx, custom_bundle_tokens_length);
-                    custom_collection_token_ids.resize(custom_bundle_tokens_length, (0, 0));
+                if !custom_collection_token_ids.is_empty() {
+                    let mut custom_token_index: Option<usize> = None;
+
+                    for (_custom_token_index, custom_token_id) in
+                        custom_collection_token_ids.iter().enumerate()
+                    {
+                        if custom_token_id.0 == msg.collection_id
+                            && custom_token_id.1 == msg.token_id
+                        {
+                            custom_token_index = Some(_custom_token_index);
+                            break;
+                        }
+                    }
+
+                    if let Some(idx) = custom_token_index {
+                        let custom_bundle_tokens_length: usize =
+                            custom_collection_token_ids.len() - 1;
+                        custom_collection_token_ids.swap(idx, custom_bundle_tokens_length);
+                        custom_collection_token_ids.resize(custom_bundle_tokens_length, (0, 0));
+                    }
                 }
             }
+
+            assigned_token_ids = deps.querier.query_wasm_smart(
+                addr.clone(),
+                &AirdropperQueryMsg::GetAssignedTokenIds {
+                    start_after: (last_msg),
+                    limit: Some(500),
+                },
+            )?;
         }
 
         for id in map.keys() {
