@@ -1023,6 +1023,7 @@ fn execute_clean_claimed_tokens_from_shuffle(
 
         let mut map: BTreeMap<u64, Vec<u32>> = BTreeMap::new();
         let mut last_msg: Option<(u64, u32)> = None;
+        let mut needs_update: bool = false;
 
         while !assigned_token_ids.is_empty() {
             for msg in assigned_token_ids {
@@ -1076,6 +1077,7 @@ fn execute_clean_claimed_tokens_from_shuffle(
                             custom_collection_token_ids.len() - 1;
                         custom_collection_token_ids.swap(idx, custom_bundle_tokens_length);
                         custom_collection_token_ids.resize(custom_bundle_tokens_length, (0, 0));
+                        needs_update = true;
                     }
                 }
             }
@@ -1105,6 +1107,10 @@ fn execute_clean_claimed_tokens_from_shuffle(
                 config.bundle_completed = true;
                 CONFIG.save(deps.storage, &config)?;
             }
+        }
+
+        if needs_update {
+            CUSTOM_BUNDLE_TOKENS.save(deps.storage, &custom_collection_token_ids)?;
         }
 
         if (custom_collection_token_ids.len() as u32) < config.custom_bundle_content_count
