@@ -1309,7 +1309,8 @@ fn execute_process_custom_bundle(
         config.custom_bundle_enabled = false;
     } else {
         check_can_update(deps.as_ref(), &env, &info, false)?;
-        let mut new_custom_bundle_tokens: Vec<(u64, u32)> = vec![];
+        let mut new_custom_bundle_tokens: Vec<(u64, u32)> =
+            (CUSTOM_BUNDLE_TOKENS.may_load(deps.storage)?).unwrap_or_default();
 
         if let Some(tokes) = tokens {
             let indexes = shuffle_token_ids(
