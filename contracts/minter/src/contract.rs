@@ -953,7 +953,13 @@ fn execute_airdrop_token_distribution(
     )?;
 
     if check_airdropper_mint_res.can_mint {
-        for token in check_airdropper_mint_res.remaining_token_ids {
+        for (tx_msg_ctr, token) in
+            (0_u32..).zip(check_airdropper_mint_res.remaining_token_ids.into_iter())
+        {
+            if tx_msg_ctr > 15 {
+                break;
+            }
+
             let current_token_supply = CURRENT_TOKEN_SUPPLY.load(deps.storage)?;
 
             res = res.add_message(
