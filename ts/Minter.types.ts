@@ -54,6 +54,7 @@ export type ExecuteMsg = {
   mint_bundle: {};
 } | {
   airdrop_claim: {
+    limit?: number | null;
     minter_address?: string | null;
   };
 } | {

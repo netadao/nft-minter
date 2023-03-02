@@ -239,8 +239,10 @@ export interface MinterInterface extends MinterReadOnlyInterface {
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   mintBundle: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   airdropClaim: ({
+    limit,
     minterAddress
   }: {
+    limit?: number;
     minterAddress?: string;
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   cleanClaimedTokensFromShuffle: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
@@ -350,12 +352,15 @@ export class MinterClient extends MinterQueryClient implements MinterInterface {
     }, fee, memo, funds);
   };
   airdropClaim = async ({
+    limit,
     minterAddress
   }: {
+    limit?: number;
     minterAddress?: string;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
       airdrop_claim: {
+        limit,
         minter_address: minterAddress
       }
     }, fee, memo, funds);

@@ -66,6 +66,14 @@
         "airdrop_claim": {
           "type": "object",
           "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
             "minter_address": {
               "type": [
                 "string",
