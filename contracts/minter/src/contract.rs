@@ -1042,7 +1042,6 @@ fn execute_clean_claimed_tokens_from_shuffle(
                 let mut collection_token_ids = map.get(&msg.collection_id).unwrap().clone();
 
                 let collection_length = collection_token_ids.len() - 1;
-                new_current_token_supply -= 1;
 
                 // retrieve index of token id
                 let token_index = collection_token_ids
@@ -1052,6 +1051,7 @@ fn execute_clean_claimed_tokens_from_shuffle(
 
                 // if it exists remove token from vec
                 if let Some(idx) = token_index {
+                    new_current_token_supply -= 1;
                     collection_token_ids.swap(idx as usize, collection_length);
                     collection_token_ids.resize(collection_length, 0);
 
