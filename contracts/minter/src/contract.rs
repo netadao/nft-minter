@@ -317,9 +317,10 @@ pub fn execute(
             minter_address,
         } => execute_mint(deps, env, info, is_promised_mint, minter_address),
         ExecuteMsg::MintBundle {} => execute_mint_bundle(deps, env, info),
-        ExecuteMsg::AirdropClaim { minter_address } => {
-            execute_airdrop_token_distribution(deps, env, info, minter_address)
-        }
+        ExecuteMsg::AirdropClaim {
+            minter_address,
+            limit,
+        } => execute_airdrop_token_distribution(deps, env, info, minter_address, limit),
         ExecuteMsg::CleanClaimedTokensFromShuffle {} => {
             execute_clean_claimed_tokens_from_shuffle(deps, env, info)
         }
@@ -927,6 +928,7 @@ fn execute_airdrop_token_distribution(
     _env: Env,
     info: MessageInfo,
     minter_address: Option<String>,
+    limit: Option<u32>,
 ) -> Result<Response, ContractError> {
     // default to self if no address passed in
     let minter_addr: Addr =
@@ -956,7 +958,7 @@ fn execute_airdrop_token_distribution(
         for (tx_msg_ctr, token) in
             (0_u32..).zip(check_airdropper_mint_res.remaining_token_ids.into_iter())
         {
-            if tx_msg_ctr > 15 {
+            if tx_msg_ctr > limit.unwrap_or(15) {
                 break;
             }
 

@@ -166,6 +166,7 @@ pub enum ExecuteMsg {
     /// this themselves) or an admin to `push` the token to them
     AirdropClaim {
         minter_address: Option<String>,
+        limit: Option<u32>,
     },
     /// Calls the attached airdropper contract and removes the `token_id`s
     /// from `SHUFFLED_TOKEN_IDS` and `TOKEN_ID_POSITIONS` so they will not

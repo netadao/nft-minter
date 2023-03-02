@@ -5352,6 +5352,7 @@ mod tests {
                 cw_template_contract.addr(),
                 &ExecuteMsg::AirdropClaim {
                     minter_address: None,
+                    limit: None,
                 },
                 &[],
             )
@@ -6267,6 +6268,7 @@ mod tests {
                 cw_template_contract.addr(),
                 &ExecuteMsg::AirdropClaim {
                     minter_address: None,
+                    limit: None,
                 },
                 &[],
             )
@@ -6425,6 +6427,7 @@ mod tests {
                 cw_template_contract.addr(),
                 &ExecuteMsg::AirdropClaim {
                     minter_address: Some(USER.to_owned()),
+                    limit: None,
                 },
                 &[],
             )
@@ -6608,6 +6611,7 @@ mod tests {
                 cw_template_contract.addr(),
                 &ExecuteMsg::AirdropClaim {
                     minter_address: Some(USER.to_owned()),
+                    limit: None,
                 },
                 &[],
             )
@@ -6812,6 +6816,7 @@ mod tests {
                 cw_template_contract.addr(),
                 &ExecuteMsg::AirdropClaim {
                     minter_address: Some(USER.to_owned()),
+                    limit: None,
                 },
                 &[],
             )
