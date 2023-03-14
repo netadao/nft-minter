@@ -8,6 +8,10 @@ Collection of CosmWasm contracts with NFT minting functionality built by [Neta D
 |airdropper|An "airdropping" module that allow creators to promise specific token_ids or promise mints|
 |whitelist|A module that allows creators to run whitelist minting campaigns where they control access, price, and mint count|
 
+## TODO
+- v1: test cases are a mess right now. needs a little love
+- v2: modularize logic to separate contracts
+
 ## Developer Commands
 
 Run these to lint, format code, build and test.  Crate/binary generation commands will come later
